@@ -105,3 +105,26 @@ c_dict   = '%(key)-10s = %(value).2f' % {'key': key,
 
 assert c_tuple == c_dict == f_string
 assert str_args == str_kw == f_string
+
+## Item 5: Write Helper Functions Instead of Complex Expressions
+"""
+Key message of this section is to avoid the temptation of reducing code using single-line, complex expressions
+and instead, use helper functions, especially if the same logic needs repeating.
+-if/else expression provides a more readable alternative than 'or' and 'and'
+"""
+from urllib.parse import parse_qs
+my_values = parse_qs('red=5&blue=0&green=',
+                     keep_blank_values=True)
+print(repr(my_values))
+
+# Complex single-line
+red = int(my_values.get('red', [''])[0] or 0)
+
+# More readable helper function
+def get_first_int(values, key, default=0):
+    found = values.get(key, [''])
+    if found[0]:
+        return int(found[0])
+    return default
+
+red = get_first_int(my_values, 'red')
