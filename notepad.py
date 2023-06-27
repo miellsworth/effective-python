@@ -53,3 +53,20 @@ Imports:
   - third-party library modules
   - your own modules
 """
+
+## Item 3: Know the Differences Between bytes and str
+"""
+Likely not the most relevant part of the chapter for me but it's interesting nonetheless!
+
+Sequences of character data can be represented via two different types: bytes and str
+- bytes: unsigned 8-bit values (binary data)
+- str: Unicode code points (a unique number) that represent textual characters from human languages
+
+Ensure you know which type you're working with as the types do not work together.
+- Use helper functions to ensure you're using the type you're expecting
+
+Reading and writing binary data requires binary mode
+- 'rb' or 'wb' specified in open()
+
+Be mindful of the text encoding you're using when reading and writing Unicode data
+"""
