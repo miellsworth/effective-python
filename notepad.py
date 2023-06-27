@@ -70,3 +70,38 @@ Reading and writing binary data requires binary mode
 
 Be mindful of the text encoding you're using when reading and writing Unicode data
 """
+
+## Item 4: Prefer Interpolated F-Strings Over C-style Format Strings and str.format
+"""
+Not a section of huge importance other than to remember to use F-strings
+
+C-style format strings use the % operator and introduces a variety of problems
+- code readibility
+- verbosity
+
+str.format and format solve a few of the issues but are not perfect and repeat the same mistakes
+
+Interpolated format strings solve these issues
+- Allows reference to all names in the current Python scope as part of a formatting expression
+- More succinct
+- Allow for directly embedded Python expressions within the format specifiers
+"""
+key = 'my_var'
+value = 1.234
+
+formatted = f'{key} = {value}'
+print(formatted)
+"""
+The following represents all the different ways to format strings, showing the benefit of f strings
+"""
+
+f_string = f'{key:<10} = {value:.2f}'
+c_tuple  = '%-10s = %.2f' % (key, value)
+str_args = '{:<10} = {:.2f}'.format(key, value)
+str_kw   = '{key:<10} = {value:.2f}'.format(key=key,
+                                            value=value)
+c_dict   = '%(key)-10s = %(value).2f' % {'key': key,
+                                         'value': value}
+
+assert c_tuple == c_dict == f_string
+assert str_args == str_kw == f_string
