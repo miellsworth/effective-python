@@ -128,3 +128,32 @@ def get_first_int(values, key, default=0):
     return default
 
 red = get_first_int(my_values, 'red')
+
+## Item 6: Prefer Multiple Assignment Unpacking Over Indexing
+"""
+In order to reduce visual noise and increase code clarity, use unpacking to avoid
+explicitly indexing into sequences
+"""
+
+# Indexing
+item = ('Peanut butter', 'Jelly')
+first = item[0]
+second = item[1]
+print(first, 'and', second)
+
+# Unpacking
+item = ('Peanut butter', 'Jelly')
+first, second = item
+print(first, 'and', second)
+
+# Indexing
+snacks = [('bacon', 350), ('donut', 240), ('muffin', 190)]
+for i in range(len(snacks)):
+    item = snacks[i]
+    name = item[0]
+    calories = item[1]
+    print(f'#{i+1}: {name} has {calories} calories')
+
+# Unpacking
+for rank, (name, calories) in enumerate(snacks, 1):
+    print(f'#{rank}: {name} has {calories} calories')
