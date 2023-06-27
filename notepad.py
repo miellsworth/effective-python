@@ -157,3 +157,22 @@ for i in range(len(snacks)):
 # Unpacking
 for rank, (name, calories) in enumerate(snacks, 1):
     print(f'#{rank}: {name} has {calories} calories')
+
+## Item 7: Prefer enumerate Over range
+"""
+enumerate wraps any iterator with a lazy generator and yields pairs of the 
+loop index and the next value.
+- provides concise syntax for looping over an iterator and getting
+the index of each item of the iterator as you go
+"""
+flavor_list = ['vanilla', 'chocolate', 'pecan', 'strawberry']
+it = enumerate(flavor_list)
+print(next(it))
+print(next(it))
+
+for i, flavor in enumerate(flavor_list):
+    print(f'{i + 1}: {flavor}')
+
+# Make shorter - specify the number from which enumerate should begin counting
+for i, flavor in enumerate(flavor_list, 1):
+    print(f'{i}: {flavor}')
