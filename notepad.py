@@ -176,3 +176,50 @@ for i, flavor in enumerate(flavor_list):
 # Make shorter - specify the number from which enumerate should begin counting
 for i, flavor in enumerate(flavor_list, 1):
     print(f'{i}: {flavor}')
+
+## Item 8: Use zip to Process Iterators in Parallel
+"""
+The zip built-in function can iterate over multiple iterators in parallel
+- creates a lazy generator that produces tuples
+- truncates its output silently to the shortest iterator
+- zip_longest is preferred for iterators of unequal lenths
+"""
+names = ['Cecilia', 'Lise', 'Marie']
+counts = [len(n) for n in names]
+print(counts)
+
+#Set-up example
+longest_name = None
+max_count = 0
+
+# Not-preferred method of iterating over multiple iterators
+for i in range(len(names)):
+    count = counts[i]
+    if count > max_count:
+        longest_name = names[i]
+        max_count = count
+
+# Slightly preferred but still not great
+for i, name in enumerate(names):
+    count = counts[i]
+    if count > max_count:
+        longest_name = name
+        max_count = count
+
+# Preferred - use zip
+for name, count in zip(names, counts):
+    if count > max_count:
+        longest_name = name
+        max_count = count
+
+# Use zip_longest for iterators of unequal lengths
+names.append('Rosalind')
+
+# zip will ignore 'Rosalind'
+for name, count in zip(names, counts):
+    print(name)
+
+# zip_longest will include 'Rosalind' and fill value with default None
+import itertools
+for name, count in itertools.zip_longest(names, counts):
+    print(f'{name}: {count}')
