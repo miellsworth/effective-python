@@ -223,3 +223,13 @@ for name, count in zip(names, counts):
 import itertools
 for name, count in itertools.zip_longest(names, counts):
     print(f'{name}: {count}')
+
+## Item 9: Avoid else Blocks After for and while Loops
+"""
+Python allows for else blocks to immediately follow for and while loop interior
+blocks.
+
+- The behaviour of this else block is unintuitive and the simple lesson is to avoid
+using them whenever possible
+- Not much more to it!
+"""
