@@ -233,3 +233,60 @@ blocks.
 using them whenever possible
 - Not much more to it!
 """
+
+## Item 10: Prevent Repetition with Assignment Expressions
+"""
+The assignment expression is also known as the walrus operator! Because it looks
+like a walrus!! :=
+
+- Used to assign and evaluate variable names in a single expression
+    - Assign and evaluate, assign and evaluate, assign and evaluate!
+- When an assignment expression is a subexpression of a larger expression, it must be
+surrounded by parentheses
+- Helpful to assign variables in places such as if statements or while loops
+"""
+# Set-up example
+fresh_fruit = {
+    'apple': 10,
+    'banana': 8,
+    'lemon': 5,
+}
+
+def make_lemonade(count):
+    ...
+def out_of_stock():
+    ...
+
+# Old syntax
+count = fresh_fruit.get('lemon', 0)
+if count:
+    make_lemonade(count)
+else:
+    out_of_stock()
+
+# New syntax with assignment operator
+if count := fresh_fruit.get('lemon', 0):
+    make_lemonade(count)
+else:
+    out_of_stock()
+
+# Subexpression example
+def make_cider(count):
+    ...
+
+if (count := fresh_fruit.get('apple', 0)) >= 4:  # Include those parentheses!
+    make_cider(count)
+else:
+    out_of_stock()
+
+# While loop example
+def pick_fruit():
+    ...
+def make_juice(fruit, count):
+    ...
+
+bottles = []
+while fresh_fruit := pick_fruit():  # Re-assigns fresh fruit and conditionally evaluated
+    for fruit, count in fresh_fruit.items():
+        batch = make_juice(fruit, count)
+        bottles.extend(batch)
