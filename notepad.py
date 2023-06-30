@@ -563,3 +563,28 @@ visits = Visits()
 visits.add('England', 'Bath')
 visits.add('England', 'London')
 print(visits.data)
+
+## Item 18: Know How to Construct Key-Dependent Default Values with __missing__
+"""
+There are instances where setdefault and defaultdict is NOT the right fit
+    - __missing__ helps handle those cases
+"""
+path = 'profile_1234.png'
+
+def open_picture(profile_path):
+    try:
+        return open(profile_path, 'a+b')
+    except OSError:
+        print(f'Failed to open path {profile_path}')
+        raise
+
+class Pictures(dict):
+    def __missing__(self, key):
+        value = open_picture(key)
+        self[key] = value
+        return value
+
+pictures = Pictures()
+handle = pictures[path]
+handle.seek(0)
+image_data = handle.read()
