@@ -339,3 +339,19 @@ You can create a copy of a list by leaving the start and end indexes blank
 """
 b = a[:]
 assert b == a and b is not a
+
+## Item 12: Avoid Striding and Slicing in a Single Expression
+"""
+Striding: lets you take every nth item when slicing a sequence
+- somelist[start:end:stride]
+
+Using this syntax can make your slice look very confusing
+- It is preferred to use positive stride values w/o start or end indexes
+- It is prefered to split up stride and start/end indexes into two assignments
+if all three are needed
+"""
+# Use a positive stride value and split up the assignment
+x = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+y = x[::2]   # ['a', 'c', 'e', 'g']
+z = y[1:-1]  # ['c', 'e']
+
