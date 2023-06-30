@@ -355,3 +355,50 @@ x = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 y = x[::2]   # ['a', 'c', 'e', 'g']
 z = y[1:-1]  # ['c', 'e']
 
+## Item 13: Prefer Catch-All Unpacking Over Slicing
+"""
+Starred expression will catch-all remaining values that didn't match any other
+part of the unpacking pattern and put them in a list
+- Can be used in any position
+- Can't be used on their own
+- Can't be used multiple times
+- Will create an empty list if there are no remaining values
+"""
+car_ages = [0, 9, 4, 8, 7, 20, 19, 1, 6, 15]
+car_ages_descending = sorted(car_ages, reverse=True)
+
+# Messy syntax using slicing, error prone
+oldest = car_ages_descending[0]
+second_oldest = car_ages_descending[1]
+others = car_ages_descending[2:]
+print(oldest, second_oldest, others)
+
+# Cleaner syntax using unpacking and starred expression
+oldest, second_oldest, *others = car_ages_descending
+print(oldest, second_oldest, others)
+
+# Starred expressions can be used in any position
+oldest, *others, youngest = car_ages_descending
+print(oldest, youngest, others)
+
+*others, second_youngest, youngest = car_ages_descending
+print(youngest, second_youngest, others)
+
+# Starred expressions can't be used on their own
+*others = car_ages_descending
+
+# Starred expressions can't be used multiple times
+first, *middle, *second_middle, last = [1, 2, 3, 4]
+
+# Starred expressions can be used multiple times in an unpacking assignment statement
+## NOT RECOMMENDED - JUST AN ILLUSTRATION
+car_inventory = {
+    'Downtown': ('Silver Shadow', 'Pinto', 'DMC'),
+    'Airport': ('Skyline', 'Viper', 'Gremlin', 'Nova'),
+}
+((loc1, (best1, *rest1)),
+ (loc2, (best2, *rest2))) = car_inventory.items()
+print(f'Best at {loc1} is {best1}, {len(rest1)} others')
+print(f'Best at {loc2} is {best2}, {len(rest2)} others')
+
+
