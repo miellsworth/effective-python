@@ -599,3 +599,52 @@ Self explanatory section. Key things to note:
     - Return a small class or namedtuple instance instead
 """
 
+## Item 20: Prefer Raising Exceptions to Returning None
+"""
+Functions that return None to indicate special meaning are error prone
+    - None and other values (e.g., zero, empty string) all evaluate to False
+
+Raise exceptions to indicate special situations instead of returning None
+    - Expect the calling code to handle exceptions properly when they're documented
+
+Type annotations can be used to make it clear that a funciton will never return
+the value None, even in special situations
+"""
+# Use None as an illustration that it can cause bugs
+def careful_divide(a, b):
+    try:
+        return a / b
+    except ZeroDivisionError:
+        return None
+
+x, y = 0, 5
+result = careful_divide(x, y)  # result is 0
+if not result:
+    print('Invalid inputs')  # This runs! But shouldn't
+
+# Use exceptions, the preferred method
+def careful_divide(a, b):
+    try:
+        return a / b
+    except ZeroDivisionError as e:
+        raise ValueError('Invalid inputs')
+
+x, y = 5, 2
+try:
+    result = careful_divide(x, y)
+except ValueError:
+    print('Invalid inputs')
+else:
+    print('Result is %.1f' % result)
+
+# Use type annotations to show the return value is always a float
+# Document the exception-raising behaviour
+def careful_divide(a: float, b: float) -> float:
+    """Divides a by b.
+    Raises:
+        ValueError: When the inputs cannot be divided.
+    """
+    try:
+        return a / b
+    except ZeroDivisionError as e:
+        raise ValueError('Invalid inputs')
