@@ -290,3 +290,52 @@ while fresh_fruit := pick_fruit():  # Re-assigns fresh fruit and conditionally e
     for fruit, count in fresh_fruit.items():
         batch = make_juice(fruit, count)
         bottles.extend(batch)
+
+# Chapter 2 - Lists and Dictionaries
+## Item 11: Know How to Slice Sequences
+"""
+Slicing: access a subset of a sequence's items with minimal effort
+- somelist[start:end]  (start is inclusive, end is exclusive)
+"""
+a = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+
+# Slice Do
+a[:5]  # leave out zero index to reduce visual noise
+a[5:]  # leave out the final index
+
+# Slice Don't
+a[0:5]
+a[5:len(a)]
+
+"""
+The result of a slicing a list is a whole new list. References to the objects
+from the original list are maintained. Modifying the result of slicing won't affect
+the original list.
+"""
+b = a[3:]
+print('Before:   ', b)
+b[1] = 99
+print('After:    ', b)
+print('No change:', a)
+
+"""
+Values before and after an assigned slice will be preserved if lengths of the 
+slice assignment aren't the same.
+"""
+print('Before ', a)
+# [2:7] is a slice of length 5, while the assigned list is of length 3
+a[2:7] = [99, 22, 14]
+print('After  ', a)
+
+print('Before ', a)
+# [2:3] is a slice of length 1, while the assigned list is of length 2
+a[2:3] = [47, 11]
+
+# list a will grow now
+print('After  ', a)
+
+"""
+You can create a copy of a list by leaving the start and end indexes blank
+"""
+b = a[:]
+assert b == a and b is not a
