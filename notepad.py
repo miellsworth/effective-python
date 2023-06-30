@@ -401,4 +401,71 @@ car_inventory = {
 print(f'Best at {loc1} is {best1}, {len(rest1)} others')
 print(f'Best at {loc2} is {best2}, {len(rest2)} others')
 
+## Item 14: Sort by Complex Criteria Using the key Parameter
+"""
+For sorting objects (outside of built-in types, strings, floats, etc.),
+the built-in sort method does not work (unless using special methods which is uncommon).
+
+Use the key parameter of the sort method to supply a helper function
+- A lambda keyword is required to specify which part of the object to sort
+
+A lambda keyword is also helpful for built-in types to do transformations on the values
+before sorting.
+
+Sorting by multiple criteria is possible using tuples but the order must be the same
+for each criteria (i.e., both ascending, both descending)
+"""
+# Set-up example, sort object
+class Tool:
+    def __init__(self, name, weight):
+        self.name = name
+        self.weight = weight
+    def __repr__(self):
+        return f'Tool({self.name!r}, {self.weight})'
+
+tools = [
+    Tool('level', 3.5),
+    Tool('hammer', 1.25),
+    Tool('screwdriver', 0.5),
+    Tool('chisel', 0.25),
+]
+
+# Does not work
+tools.sort()
+
+# Sorting using lambda keyword
+print('Unsorted:', repr(tools))
+tools.sort(key=lambda x: x.name)
+print('\nSorted:  ', tools)
+tools.sort(key=lambda x: x.weight)
+print('\nBy weight:', tools)
+
+# Transform and sort
+places = ['home', 'work', 'New York', 'Paris']
+places.sort()
+print('Case sensitive:  ', places)
+places.sort(key=lambda x: x.lower())
+print('Case insensitive:', places)
+
+# Sorting by multiple criteria using tuples
+power_tools = [
+    Tool('drill', 4),
+    Tool('circular saw', 5),
+    Tool('jackhammer', 40),
+    Tool('sander', 4),
+]
+
+## Sort by weight then name
+power_tools.sort(key=lambda x: (x.weight, x.name))
+print(power_tools)
+
+## Sort by weight (descending) then name (ascending)
+power_tools.sort(key=lambda x: (-x.weight, x.name))
+print(power_tools)
+
+## Sort by name (ascending) then weight (descending)
+power_tools.sort(key=lambda x: x.name)   # Name ascending
+power_tools.sort(key=lambda x: x.weight, # Weight descending
+                 reverse=True)
+print(power_tools)
 
