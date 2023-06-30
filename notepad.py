@@ -588,3 +588,14 @@ pictures = Pictures()
 handle = pictures[path]
 handle.seek(0)
 image_data = handle.read()
+
+# Chapter 3 - Functions
+## Item 19: Never Unpack More Than Three Variables
+## When Functions Return Multiple Values
+"""
+Self explanatory section. Key things to note:
+    - You can have functions that return multiple values but returning
+    four or more variables is error prone and should be avoided
+    - Return a small class or namedtuple instance instead
+"""
+
