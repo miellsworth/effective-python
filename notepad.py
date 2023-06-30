@@ -541,3 +541,25 @@ names.append(who)
 ## and introduces potential bugs
 names = votes.setdefault(key, [])
 names.append(who)
+
+## Item 17: Prefer defaultdict Over setdefault to Handle Missing Items in Internal State
+"""
+This section has some details that probably aren't overly important for me.
+
+Some key things to remember:
+    - If you're creating a dictionary to manage an arbitrary set of potential keys,
+    then you should prefer using defaultdict instance from the collections built-in
+    module
+    - If a dictionary of arbitrary keys is passed to you, and you don't control
+    its creation, then you should prefer the get method to access its items
+"""
+from collections import defaultdict
+class Visits:
+    def __init__(self):
+        self.data = defaultdict(set)
+    def add(self, country, city):
+        self.data[country].add(city)
+visits = Visits()
+visits.add('England', 'Bath')
+visits.add('England', 'London')
+print(visits.data)
