@@ -469,3 +469,19 @@ power_tools.sort(key=lambda x: x.weight, # Weight descending
                  reverse=True)
 print(power_tools)
 
+## Item 15: Be Cautious When Relying on dict Insertion Ordering
+"""
+Dictionary ordering was not built-in prior to Python 3.6. Since Python 3.7, you can
+rely on the fact that iterating a dict instance's contents will occur in the same
+order in which the keys were initially added.
+
+If you define objects that act like dictionaries but aren't dict instances, you can't
+assume that insertion ordering will be preserved.
+- To avoid this problem:
+    - Write code that doesn't rely on insertion ordering
+    - Explicitly check for the dict type at runtime
+        if not isintance(object, dict):
+            raise TypeError('must provide a dict instance')
+    - Require dict values using type annotations and static analysis
+        def function (dict1: Dict[str, int], dict2: Dict[str, int])
+"""
