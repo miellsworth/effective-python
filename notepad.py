@@ -772,3 +772,55 @@ def log(sequence, message, *values):
 log(1, 'Favorites', 7, 33)      # New with *args OK
 log(1, 'Hi there')              # New message only OK
 log('Favorite numbers', 7, 33)  # Old usage breaks
+
+## Item 23: Provide Optional Behaviour with Keyword Arguments
+"""
+Function arguments can be specified by position or by keyword.
+
+Keywords make it clear what the purpose of each argument is instead of using
+positional arugments and having to reference the implementation of the function.
+
+Keyword arguments with default values make it easy to add new behaviours to a function
+without needing to migrate all existing callers.
+
+Optional keyword arguments should always be passed by keyword instead of by position.
+"""
+# Arguments specified by position and keyword
+def remainder(number, divisor):
+    return number % divisor
+
+remainder(20, 7)  # Both position
+remainder(20, divisor=7)  # position and keyword
+remainder(number=20, divisor=7)  # keyword and keyword
+remainder(divisor=7, number=20)  # keyword and keyword in different positions
+
+# Positional arguments must be specified before keyword arguments
+## Correct
+remainder(20, divisor=7)
+
+## Incorrect
+remainder(number=20, 7)
+
+# You can use an existing dictionary to pass in keyword arguments
+my_kwargs = {
+    'number': 20,
+    'divisor': 7,
+}
+remainder(**my_kwargs)
+
+# You can build a function that will receive any named keyword arguments
+def print_parameters(**kwargs):
+    for key, value in kwargs.items():
+        print(f'{key} = {value}')
+print_parameters(alpha=1.5, beta=9, gamma=4)
+
+# Use default keyword arguments
+def flow_rate(weight_diff, time_diff,
+              period=1, units_per_kg=1):
+    return ((weight_diff * units_per_kg) / time_diff) * period
+
+# Always use keyword arguments over positional arguments when changing defaults
+weight_diff = 0.5
+time_diff = 3
+pounds_per_hour = flow_rate(weight_diff, time_diff,
+                            period=3600, units_per_kg=2.2)
