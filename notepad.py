@@ -485,3 +485,59 @@ assume that insertion ordering will be preserved.
     - Require dict values using type annotations and static analysis
         def function (dict1: Dict[str, int], dict2: Dict[str, int])
 """
+
+## Item 16: Prefer get Over in and KeyError to Handle Missing Dictionary Keys
+"""
+There are four ways to handle missing keys
+- in expressions
+- KeyError exceptions
+- the get method (PREFERRED)
+- the setdefault method
+"""
+# Set-up example
+counters = {
+    'pumpernickel': 2,
+    'sourdough': 1,
+}
+
+# Increment counter with a new vote, using in expression
+key = 'wheat'
+if key in counters:
+    count = counters[key]
+else:
+    count = 0
+counters[key] = count + 1
+
+# Increment counter with a new vote, using KeyError exception
+try:
+    count = counters[key]
+except KeyError:
+    count = 0
+counters[key] = count + 1
+
+# PREFERRED - Increment counter with a new vote, using get method
+count = counters.get(key, 0)  # Assigns key with 0 if it doesn't exist
+counters[key] = count + 1
+
+# A more complex example
+votes = {
+    'baguette': ['Bob', 'Alice'],
+    'ciabatta': ['Coco', 'Deb'],
+}
+key = 'brioche'
+who = 'Elmer'
+
+names = votes.get(key)
+if names is None:
+    votes[key] = names = []
+names.append(who)
+
+## Further simplified using assignment expression
+if (names := votes.get(key)) is None:
+    votes[key] = names = []
+names.append(who)
+
+## Further simplified using the setdefault method, might be too difficult to understand
+## and introduces potential bugs
+names = votes.setdefault(key, [])
+names.append(who)
