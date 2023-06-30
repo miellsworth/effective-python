@@ -921,3 +921,85 @@ def log_typed(message: str,
     if when is None:
         when = datetime.now()
     print(f'{when}: {message}')
+
+## Item 25: Enforce Clarity with Keyword-Only and Positional-Only Arguments
+"""
+Python gives you the option to specify arguments that have to be called by keywords
+    - Defined after a single * in the argument list
+
+Python also gives you the option to specify arguments that have to be called positionally
+    - Defined before a single / in the argument list
+
+Parameters between / and * characters can be called by keyword or positionally
+"""
+# Keyword arguments enforced
+def safe_division_c(number, divisor, *,  # Use * to enforce keyword arguments
+                  ignore_overflow,
+                  ignore_zero_division):
+    try:
+        return number / divisor
+    except OverflowError:
+        if ignore_overflow:
+            return 0
+        else:
+            raise
+    except ZeroDivisionError:
+        if ignore_zero_division:
+            return float('inf')
+        else: raise
+
+# This will not work because ignore_overflow and ignore_zero_division
+# are not called via keyword arguments
+safe_division_c(1.0, 10**500, True, False)
+
+# This will work though
+result = safe_division_c(1.0, 0, ignore_zero_division=True)
+assert result == float('inf')
+
+# Positional arguments enforced
+def safe_division_d(number, divisor, /, *,  # Use / to enforce positional arguments
+                  ignore_overflow,
+                  ignore_zero_division):
+    try:
+        return number / divisor
+    except OverflowError:
+        if ignore_overflow:
+            return 0
+        else:
+            raise
+    except ZeroDivisionError:
+        if ignore_zero_division:
+            return float('inf')
+        else: raise
+
+# works
+assert safe_division_d(2, 5) == 0.4
+
+# does not work, using keyword arguments when you should use positional
+safe_division_d(numerator=2, denominator=5)
+
+# Flexible arguments between enforced positional and keyword arguments
+def safe_division_e(numerator, denominator, /,
+                    ndigits=10, *,  # Flexible argument
+                    ignore_overflow=False,
+                    ignore_zero_division=False):
+    try:
+        fraction = numerator / denominator
+        return round(fraction, ndigits)
+    except OverflowError:
+        if ignore_overflow:
+            return 0
+        else:
+            raise
+    except ZeroDivisionError:
+        if ignore_zero_division:
+            return float('inf')
+        else: raise
+
+# All work
+result = safe_division_e(22, 7)
+print(result)
+result = safe_division_e(22, 7, 5)
+print(result)
+result = safe_division_e(22, 7, ndigits=2)
+print(result)
