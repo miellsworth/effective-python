@@ -1112,3 +1112,42 @@ alt_dict = dict(map(lambda x: (x, x**2),
                 filter(lambda x: x % 2 == 0, a)))
 alt_set = set(map(lambda x: x**3,
               filter(lambda x: x % 3 == 0, a)))
+
+## Item 28: Avoid More Than Two Control Subexpressions in Comprehensions
+"""
+Multiple levels of loops and conditional statements are possible in comprehensions
+but one should avoid more than two.
+- Either stick with two loops, two conditions or one condition and one loop
+as they become difficult to read when there are more than two control subexpressions
+"""
+
+# Do
+matrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+flat = [x for row in matrix for x in row]
+print(flat)
+
+squared = [[x**2 for x in row] for row in matrix]
+print(squared)
+
+# Don't - this is clearer as a for loop
+my_lists = [
+    [[1, 2, 3], [4, 5, 6]],
+]
+flat = [x for sublist1 in my_lists
+        for sublist2 in sublist1
+        for x in sublist2]
+
+# For loop is clearer
+flat = []
+for sublist1 in my_lists:
+    for sublist2 in sublist1:
+        flat.extend(sublist2)
+
+"""
+One other thing to note, multiple if conditions at the same loop level
+are possible and have an implicit and expression
+"""
+# b and c are equivalent
+a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+b = [x for x in a if x > 4 if x % 2 == 0]  # if if
+c = [x for x in a if x > 4 and x % 2 == 0]  # if and
