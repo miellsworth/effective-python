@@ -1064,3 +1064,51 @@ def fibonacci(n):
 # Issue resolved :)
 print(fibonacci)
 help(fibonacci)
+
+# Chapter 4 - Comprehensions and Generators
+## Item 27: Use Comprehensions Instead of map and filter
+"""
+I'm not overly familiar with map and filter but know comprehensions quite well.
+Key message here is that I shouldn't bother to spend much time learning about
+those two functions!
+
+Reasons comprehensions are more appropriate than map and filter
+- Comprehensions are clearer because they don't require lambda expressions
+- Comprehensions allow for conditional statements that can skip items from the input
+list whereas map doesn't without help from filter
+- Don't forget about dictionary and set comprehensions! It's not just about lists!
+"""
+a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+# Do
+squares = [x**2 for x in a]  # List comprehension
+print(squares)
+
+# Don't - for loop
+squares = []
+for x in a:
+    squares.append(x**2)
+print(squares)
+
+# Don't - map
+alt = map(lambda x: x ** 2, a)
+
+# Do - comprehension with a filter
+even_squares = [x**2 for x in a if x % 2 == 0]
+print(even_squares)
+
+# Don't - map with filter (it's unclear!)
+alt = map(lambda x: x**2, filter(lambda x: x % 2 == 0, a))
+assert even_squares == list(alt)
+
+# Dictionary and set comprehensions
+even_squares_dict = {x: x**2 for x in a if x % 2 == 0}
+threes_cubed_set = {x**3 for x in a if x % 3 == 0}
+print(even_squares_dict)
+print(threes_cubed_set)
+
+# Alternative with map and filter - not clear!
+alt_dict = dict(map(lambda x: (x, x**2),
+                filter(lambda x: x % 2 == 0, a)))
+alt_set = set(map(lambda x: x**3,
+              filter(lambda x: x % 3 == 0, a)))
