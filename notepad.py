@@ -1151,3 +1151,54 @@ are possible and have an implicit and expression
 a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 b = [x for x in a if x > 4 if x % 2 == 0]  # if if
 c = [x for x in a if x > 4 and x % 2 == 0]  # if and
+
+## Item 29: Avoid Repeated Work in Comprehensions by Using Assignment Expressions
+"""
+Assignment expressions make it possible for comprehensions and generator expressions
+to reuse the value from one condition elsewhere in the same comprehension
+
+Don't use the assignment expression outside of the comprehension's condition. Can result
+in leaking of the loop variable.
+"""
+# Set-up example
+stock = {
+    'nails': 125,
+    'screws': 35,
+    'wingnuts': 8,
+    'washers': 24,
+}
+order = ['screws', 'wingnuts', 'clips']
+def get_batches(count, size):
+    return count // size
+
+# For loop example
+result = {}
+for name in order:
+  count = stock.get(name, 0)
+  batches = get_batches(count, 8)
+  if batches:
+    result[name] = batches
+print(result)
+
+# Dictionary comprehension example - somewhat more succinct
+found = {name: get_batches(stock.get(name, 0), 8)
+         for name in order
+         if get_batches(stock.get(name, 0), 8)}
+print(found)
+
+# Dictionary comprehension with assignment expression - more succinct
+found = {name: batches for name in order
+         if (batches := get_batches(stock.get(name, 0), 8))}
+
+# Using an assignment expression in a dict comprehension incorrectly
+result = {name: (tenth := count // 10)
+          for name, count in stock.items() if tenth > 0}
+
+# Correcting the previous example
+result = {name: tenth for name, count in stock.items()
+          if (tenth := count // 10) > 0}
+print(result)
+
+# Example of a leaking loop variable
+half = [(last := count // 2) for count in stock.values()]
+print(f'Last item of {half} is {last}')
