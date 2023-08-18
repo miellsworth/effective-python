@@ -1436,3 +1436,45 @@ def animate_composed():
     yield from move(2, 3.0)
 
 run(animate_composed)
+
+## Item 34: Avoid Injecting Data into Generators with send
+"""
+- The send method can be used to inject data into a generator by giving
+the yield expression a value that can be assigned to a variable.
+- Using send with yield from expressions may cause surprising
+behavior, such as None values appearing at unexpected times in the
+generator output.
+- Providing an input iterator to a set of composed generators is a better
+approach than using the send method, which should be avoided.
+"""
+# Final example...
+import math
+
+def transmit(output):
+    if output is None:
+        print(f'Output is None')
+    else:
+        print(f'Output: {output:>5.1f}')
+
+def wave_cascading(amplitude_it, steps):
+    step_size = 2 * math.pi / steps
+    for step in range(steps):
+        radians = step * step_size
+        fraction = math.sin(radians)
+        amplitude = next(amplitude_it) # Get next input
+        output = amplitude * fraction
+        yield output
+
+def complex_wave_cascading(amplitude_it):
+    yield from wave_cascading(amplitude_it, 3)
+    yield from wave_cascading(amplitude_it, 4)
+    yield from wave_cascading(amplitude_it, 5)
+
+def run_cascading():
+    amplitudes = [7, 7, 7, 2, 2, 2, 2, 10, 10, 10, 10, 10]
+    it = complex_wave_cascading(iter(amplitudes))
+    for amplitude in amplitudes:
+        output = next(it)
+        transmit(output)
+
+run_cascading()
