@@ -1242,3 +1242,128 @@ print(next(it))
 # Create a list from the generator
 result = list(index_words_iter(address))
 print(result[:10])
+
+## Item 31: Be defensive when iterating over arguments
+"""
+- Beware of functions and methods that iterate over input arguments
+multiple times. If these arguments are iterators, you may see
+strange behavior and missing values.
+- Python's iterator protocol defines how containers and iterators interact
+with the iter and next built-in functions, for loops, and related
+expressions.
+- You can easily define your own iterable container type by implementing
+the __iter__ method as a generator.
+- You can detect that a value is an iterator (instead of a container)
+if calling iter on it produces the same value as what you passed
+in.
+- Alternatively, you can use the isinstance built-in function along
+with the collections.abc.Iterator class.
+"""
+# Iterating over a list multiple times
+def normalize(numbers):
+    total = sum(numbers)
+    result = []
+    for value in numbers:
+        percent = 100 * value / total
+        result.append(percent)
+    return result
+
+visits = [15, 35, 80]
+percentages = normalize(visits)
+print(percentages)
+assert sum(percentages) == 100.0
+
+# Iterating over a file using a generator
+def read_visits(data_path):
+    with open(data_path) as f:
+        for line in f:
+            yield int(line)
+
+# Test the read_visits function
+it = read_visits('my_numbers.txt')
+percentages = normalize(it)  # This will exhaust the generator
+print(percentages)  # As a result, this will return no result
+
+it = read_visits('my_numbers.txt')
+print(list(it))
+print(list(it)) # Already exhausted, no result
+
+# Avoid this behaviour, copy as a list (can result in memory issues though!)
+def normalize_copy(numbers):
+    numbers_copy = list(numbers) # Copy the iterator
+    total = sum(numbers_copy)
+    result = []
+    for value in numbers_copy:
+        percent = 100 * value / total
+        result.append(percent)
+    return result
+
+# Resolves the issue
+it = read_visits('my_numbers.txt')
+percentages = normalize_copy(it)
+print(percentages)
+assert sum(percentages) == 100.0
+
+# Resolve potential memory issues by creating a new iterator
+def normalize_func(get_iter):
+    total = sum(get_iter()) # New iterator
+    result = []
+    for value in get_iter(): # New iterator
+        percent = 100 * value / total
+        result.append(percent)
+    return result
+
+path = 'my_numbers.txt'
+# Requires a lambda function which is a bit clumsy...
+percentages = normalize_func(lambda: read_visits(path))
+print(percentages)
+assert sum(percentages) == 100.0
+
+# Use the iterator protocol instead! This is an iterable container
+class ReadVisits:
+    def __init__(self, data_path):
+        self.data_path = data_path
+    def __iter__(self):
+        with open(self.data_path) as f:
+            for line in f:
+                yield int(line)
+
+visits = ReadVisits(path)
+percentages = normalize(visits)
+print(percentages)
+assert sum(percentages) == 100.0
+
+# Create a function to check to ensure the iterator can be repeatedly iterated over
+def normalize_defensive(numbers):
+    if iter(numbers) is numbers: # An iterator -- bad!
+        raise TypeError('Must supply a container')
+    total = sum(numbers)
+    result = []
+    for value in numbers:
+        percent = 100 * value / total
+        result.append(percent)
+    return result
+
+# Use collections to check for an iterable container
+from collections.abc import Iterator
+def normalize_defensive(numbers):
+    if isinstance(numbers, Iterator): # Another way to check
+        raise TypeError('Must supply a container')
+    total = sum(numbers)
+    result = []
+    for value in numbers:
+        percent = 100 * value / total
+        result.append(percent)
+    return result
+
+visits = [15, 35, 80]
+percentages = normalize_defensive(visits)
+assert sum(percentages) == 100.0
+visits = ReadVisits(path)
+percentages = normalize_defensive(visits)
+assert sum(percentages) == 100.0
+
+# Throws an error if the input is an iterator rather than a container
+visits = [15, 35, 80]
+it = iter(visits)
+normalize_defensive(it)
