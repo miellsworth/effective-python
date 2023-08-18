@@ -1367,3 +1367,30 @@ assert sum(percentages) == 100.0
 visits = [15, 35, 80]
 it = iter(visits)
 normalize_defensive(it)
+
+## Item 32: Consider Generator Expressions for Large List Comprehensions
+"""
+- List comprehensions can cause problems for large inputs by using
+too much memory.
+- Generator expressions avoid memory issues by producing outputs
+one at a time as iterators.
+- Generator expressions can be composed by passing the iterator from
+one generator expression into the for subexpression of another.
+- Generator expressions execute very quickly when chained together
+and are memory efficient.
+- Be careful though! The outputs are stateful!
+"""
+# A list comprehension that can only handle small input files
+value = [len(x) for x in open('my_file.txt')]
+print(value)
+
+# A generator comprehension that can handle larger input files
+it = (len(x) for x in open('my_file.txt'))
+print(it)
+
+print(next(it))
+print(next(it))
+
+# Use a generator as an input to a generator expression
+roots = ((x, x**0.5) for x in it)
+print(next(roots))
