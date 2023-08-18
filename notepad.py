@@ -1478,3 +1478,26 @@ def run_cascading():
         transmit(output)
 
 run_cascading()
+
+## Item 35: Avoid Causing State Transitions in Generators with throw
+"""
+- The throw method can be used to re-raise exceptions within
+generators at the position of the most recently executed yield
+expression.
+- Using throw harms readability because it requires additional nesting
+and boilerplate in order to raise and catch exceptions.
+- A better way to provide exceptional behavior in generators is to use
+a class that implements the __iter__ method along with methods to
+cause exceptional state transitions.
+"""
+# Example of using throw to re-raise Exception instances within generator functions
+class MyError(Exception):
+    pass
+def my_generator():
+    yield 1
+    yield 2
+    yield 3
+it = my_generator()
+print(next(it)) # Yield 1
+print(next(it)) # Yield 2
+print(it.throw(MyError('test error')))
