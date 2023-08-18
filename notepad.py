@@ -1202,3 +1202,43 @@ print(result)
 # Example of a leaking loop variable
 half = [(last := count // 2) for count in stock.values()]
 print(f'Last item of {half} is {last}')
+
+## Item 30: Consider Generators Instead of Returning Lists
+"""
+- Using generators can be clearer than the alternative of having a
+function return a list of accumulated results.
+- The iterator returned by a generator produces the set of values
+passed to yield expressions within the generator function's body.
+- Generators can produce a sequence of outputs for arbitrarily large
+inputs because their working memory doesn't include all inputs and
+outputs.
+"""
+# Set-up example - returning lists
+def index_words(text):
+    result = []
+    if text:
+        result.append(0)
+    for index, letter in enumerate(text):
+        if letter == ' ':
+            result.append(index + 1)
+    return result
+
+address = 'Four score and seven years ago...'
+result = index_words(address)
+print(result[:10])
+
+# Producing the same result with a generator
+def index_words_iter(text):
+    if text:
+        yield 0
+    for index, letter in enumerate(text):
+        if letter == ' ':
+            yield index + 1
+
+it = index_words_iter(address)
+print(next(it))
+print(next(it))
+
+# Create a list from the generator
+result = list(index_words_iter(address))
+print(result[:10])
