@@ -1501,3 +1501,120 @@ it = my_generator()
 print(next(it)) # Yield 1
 print(next(it)) # Yield 2
 print(it.throw(MyError('test error')))
+
+## Item 36: Consider itertools for working with iterators and generators
+"""
+- The itertools functions fall into three main categories for working
+with iterators and generators: linking iterators together, filtering
+items they output, and producing combinations of items.
+- There are more advanced functions, additional parameters, and
+useful recipes available in the documentation at help(itertools).
+"""
+import itertools
+
+# Linking iterators together
+## Chain
+it = itertools.chain([1, 2, 3], [4, 5, 6])  # Combine multiple iterators
+print(list(it))
+
+## Repeat
+it = itertools.repeat('hello', 3)  # Output a single value an infinite or n number of times
+print(list(it))
+
+## Cycle
+it = itertools.cycle([1, 2])  # Repeat an interator's items forever
+result = [next(it) for _ in range (10)]
+print(result)
+
+## Tee
+it1, it2, it3 = itertools.tee(['first', 'second'], 3)  # Split an iterator into multiple iterators
+print(list(it1))
+print(list(it2))
+print(list(it3))
+
+## Zip longest
+# Variant of the zip built-in function that returns a placeholder when an iterator is exhausted
+keys = ['one', 'two', 'three']
+values = [1, 2]
+
+normal = list(zip(keys, values))
+print('zip: ', normal)
+
+it = itertools.zip_longest(keys, values, fillvalue='nope')  # fillvalue specifies the placeholder value
+longest = list(it)
+print('zip_longest:', longest)
+
+# Filtering items from an iterator
+## islice
+# Slice an interator without copying
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+first_five = itertools.islice(values, 5)
+print('First five: ', list(first_five))
+
+middle_odds = itertools.islice(values, 2, 8, 2)  # start=2, end=8, step size=2
+print('Middle odds:', list(middle_odds))
+
+## takewhile
+# Returns items from an iterator until a specified function returns False
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+less_than_seven = lambda x: x < 7
+it = itertools.takewhile(less_than_seven, values)
+print(list(it))
+
+# dropwhile
+# Skips items from an iterator when a specified function returns True, then returns items if False
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+less_than_seven = lambda x: x < 7
+it = itertools.dropwhile(less_than_seven, values)
+print(list(it))
+
+## filterfalse
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+evens = lambda x: x % 2 == 0
+
+# filter() filters an iterator when function is True
+filter_result = filter(evens, values)
+print('Filter: ', list(filter_result))
+
+# filter() filters an iterator when function is False
+filter_false_result = itertools.filterfalse(evens, values)
+print('Filter false:', list(filter_false_result))
+
+# Producing Combinations of Items from Iterators
+## accumulate
+# Returns accumulated sums (or other binary function results)
+values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+sum_reduce = itertools.accumulate(values)
+print('Sum: ', list(sum_reduce))
+
+def sum_modulo_20(first, second):
+    output = first + second
+    return output % 20
+
+modulo_reduce = itertools.accumulate(values, sum_modulo_20)
+print('Modulo:', list(modulo_reduce))
+
+## product
+# Returns a cartesian product of items from one or more iterators
+single = itertools.product([1, 2], repeat=2)
+print('Single: ', list(single))
+
+multiple = itertools.product([1, 2], ['a', 'b'])
+print('Multiple:', list(multiple))
+
+## permutations
+# Returns unique ordered permutations of length N
+it = itertools.permutations([1, 2, 3, 4], 2)  # N=2
+print(list(it))
+
+## combinations
+# Returns unique unordered permutations of length N, but no repeated items
+# e.g., (1, 2) returned but not (2, 1)
+it = itertools.combinations([1, 2, 3, 4], 2)
+print(list(it))
+
+## combinations_with_replacement
+# same as combintations but with repeated items
+it = itertools.combinations_with_replacement([1, 2, 3, 4], 2)
+print(list(it))
