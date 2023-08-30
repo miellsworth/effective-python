@@ -1618,3 +1618,14 @@ print(list(it))
 # same as combintations but with repeated items
 it = itertools.combinations_with_replacement([1, 2, 3, 4], 2)
 print(list(it))
+
+## Item 37: Compose Classes Instead of Nesting Many Levels of Built-in Types
+"""
+- Avoid making dictionaries with values that are dictionaries, long
+tuples, or complex nestings of other built-in types.
+- Use namedtuple for lightweight, immutable data containers before
+you need the flexibility of a full class.
+- Move your bookkeeping code to using multiple classes when your
+internal state dictionaries get complicated.
+"""
+
