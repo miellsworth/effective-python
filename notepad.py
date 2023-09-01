@@ -1786,3 +1786,97 @@ gym_albert = albert.get_subject('Gym')
 gym_albert.report_grade(100, 0.40)
 gym_albert.report_grade(85, 0.60)
 print(albert.average_grade())
+
+## Item 38: Accept Functions Instead of Classes for Simple Interfaces
+"""
+- Instead of defining and instantiating classes, you can often simply
+use functions for simple interfaces between components in Python.
+- References to functions and methods in Python are first class,
+meaning they can be used in expressions (like any other type).
+- The __call__ special method enables instances of a class to be
+called like plain Python functions.
+- When you need a function to maintain state, consider defining a
+class that provides the __call__ method instead of defining a stateful
+closure.
+"""
+
+# Example of customizing behaviour based on passing in a function
+names = ['Socrates', 'Archimedes', 'Plato', 'Aristotle']
+names.sort(key=len)  # len() is the function that determines the behaviour of .sort()
+print(names)
+
+# Example of customizing the behaviour of defaultdict using a function log_missing()
+def log_missing():
+    print('Key added')
+    return 0
+
+from collections import defaultdict
+current = {'green': 12, 'blue': 3}
+increments = [
+    ('red', 5),
+    ('blue', 17),
+    ('orange', 9),
+]
+result = defaultdict(log_missing, current)
+print('Before:', dict(result))
+for key, amount in increments:
+    result[key] += amount
+print('After: ', dict(result))
+
+# Define a helper function with a stateful closure to count # of missing keys
+def increment_with_report(current, increments):
+    added_count = 0
+    
+    def missing():
+        nonlocal added_count # Stateful closure
+        added_count += 1
+        return 0
+    
+    result = defaultdict(missing, current)
+    for key, amount in increments:
+        result[key] += amount
+    return result, added_count
+
+result, count = increment_with_report(current, increments)
+assert count == 2
+
+# Define a class that encapsulates the state you want to track
+## Easier to read than stateful hooks like missing() above
+class CountMissing:
+    def __init__(self):
+        self.added = 0
+
+    def missing(self):
+        self.added += 1
+        return 0
+
+counter = CountMissing()
+## counter.missing can now be used to provide the behaviour of a stateful closure
+result = defaultdict(counter.missing, current) # Method ref
+for key, amount in increments:
+    result[key] += amount
+assert counter.added == 2
+
+## This class can be confusing though as it's not clear that its purpose is to be used with defaultdict
+
+# A more clear example of using a class to provide the behaviour of a stateful closure
+class BetterCountMissing:
+    def __init__(self):
+        self.added = 0
+    
+    # This indicates that a class's instance will be used somewhere
+    # a function argument would be suitable (like API hooks)
+    def __call__(self):
+        self.added += 1
+        return 0
+
+counter = BetterCountMissing()
+assert counter() == 0
+assert callable(counter)  # __call__ makes this class a "callable"
+
+# Use the new class in the defaultdict example
+counter = BetterCountMissing()
+result = defaultdict(counter, current) # Relies on __call__
+for key, amount in increments:
+    result[key] += amount
+assert counter.added == 2
