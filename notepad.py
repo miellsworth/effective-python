@@ -292,6 +292,10 @@ while fresh_fruit := pick_fruit():  # Re-assigns fresh fruit and conditionally e
         bottles.extend(batch)
 
 # Chapter 2 - Lists and Dictionaries
+"""
+
+"""
+
 ## Item 11: Know How to Slice Sequences
 """
 Slicing: access a subset of a sequence's items with minimal effort
@@ -590,6 +594,10 @@ handle.seek(0)
 image_data = handle.read()
 
 # Chapter 3 - Functions
+"""
+
+"""
+
 ## Item 19: Never Unpack More Than Three Variables
 ## When Functions Return Multiple Values
 """
@@ -1066,6 +1074,10 @@ print(fibonacci)
 help(fibonacci)
 
 # Chapter 4 - Comprehensions and Generators
+"""
+
+"""
+
 ## Item 27: Use Comprehensions Instead of map and filter
 """
 I'm not overly familiar with map and filter but know comprehensions quite well.
@@ -1619,6 +1631,15 @@ print(list(it))
 it = itertools.combinations_with_replacement([1, 2, 3, 4], 2)
 print(list(it))
 
+# Chapter 5 - Classes and Interfaces
+"""
+Python's classes and inheritance make it easy to express a program's
+intended behaviors with objects. They allow you to improve and
+expand functionality over time. They provide flexibility in an environment
+of changing requirements. Knowing how to use them well
+enables you to write maintainable code.
+"""
+
 ## Item 37: Compose Classes Instead of Nesting Many Levels of Built-in Types
 """
 - Avoid making dictionaries with values that are dictionaries, long
@@ -1880,3 +1901,153 @@ result = defaultdict(counter, current) # Relies on __call__
 for key, amount in increments:
     result[key] += amount
 assert counter.added == 2
+
+## Item 39: Use @classmethod Polymorphism to Construct Objects Generically
+"""
+- Python only supports a single constructor per class: the __init__ method.
+- Use @classmethod to define alternative constructors for your classes.
+- Use class method polymorphism to provide generic ways to build and connect many concrete subclasses.
+"""
+
+# Create a common class to represent input data with a read method to be defined by subclasses
+class InputData:
+    def read(self):
+        raise NotImplementedError
+
+# Concrete subclass of InputData that reads data from a file on disk
+class PathInputData(InputData):
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+    def read(self):
+        with open(self.path) as f:
+            return f.read()
+
+# A common class for a MapReduce example, similar to InputData
+class Worker:
+    def __init__(self, input_data):
+        self.input_data = input_data
+        self.result = None
+    
+    def map(self):
+        raise NotImplementedError
+    
+    def reduce(self, other):
+        raise NotImplementedError
+
+# A concrete subclass of Worker
+class LineCountWorker(Worker):
+    def map(self):
+        data = self.input_data.read()
+        self.result = data.count('\n')
+    
+    def reduce(self, other):
+        self.result += other.result
+
+# Manually build and connect the objects with helper functions
+import os
+
+## List the contents of a directory and construct a PathInputData instance for each file it contains
+def generate_inputs(data_dir):
+    for name in os.listdir(data_dir):
+        yield PathInputData(os.path.join(data_dir, name))
+
+## Create the LineCountWorker instances by using the InputData instances returned by generate_inputs
+def create_workers(input_list):
+    workers = []
+    for input_data in input_list:
+        workers.append(LineCountWorker(input_data))
+    return workers
+
+## Execute Worker instances by fanning out the map step to multiple threads
+from threading import Thread
+def execute(workers):
+    threads = [Thread(target=w.map) for w in workers]
+    for thread in threads: thread.start()
+    for thread in threads: thread.join()
+
+    # call reduce repeatedly to combine the results into one final value
+    first, *rest = workers
+    for worker in rest:
+        first.reduce(worker)
+    return first.result
+
+## Connect all the pieces together in a function to run each step
+def mapreduce(data_dir):
+    inputs = generate_inputs(data_dir)
+    workers = create_workers(inputs)
+    return execute(workers)
+
+# Run the mapreduce function on a set of test input files
+import os
+import random
+
+def write_test_files(tmpdir):
+    os.makedirs(tmpdir)
+    for i in range(100):
+        with open(os.path.join(tmpdir, str(i)), 'w') as f:
+            f.write('\n' * random.randint(0, 100))
+
+tmpdir = 'test_inputs'
+write_test_files(tmpdir)
+
+result = mapreduce(tmpdir)
+print(f'There are {result} lines')
+
+## This mapreduce function is not generic and would require a rewrite of 
+## generate_inputs, create_workers, and mapreduce if we wanted to write another
+## InputData or Worker subclass
+
+# Use class method polymorphism to solve this problem
+class GenericInputData:
+    def read(self):
+        raise NotImplementedError
+
+    @classmethod
+    def generate_inputs(cls, config):
+        raise NotImplementedError
+
+# 
+class PathInputData(GenericInputData):
+    ...
+    
+    @classmethod
+    def generate_inputs(cls, config):
+        data_dir = config['data_dir']
+        for name in os.listdir(data_dir):
+            yield cls(os.path.join(data_dir, name))
+
+# Make creater_workers a part of the GenericWorker class
+class GenericWorker:
+    def __init__(self, input_data):
+        self.input_data = input_data
+        self.result = None
+
+    def map(self):
+        raise NotImplementedError
+
+    def reduce(self, other):
+        raise NotImplementedError
+
+    @classmethod
+    def create_workers(cls, input_class, config):  # cls() constructs GenericWorker objects
+        workers = []
+        for input_data in input_class.generate_inputs(config):
+            workers.append(cls(input_data))
+        return workers
+
+# Change the parent class
+class LineCountWorker(GenericWorker):
+    ...
+
+# Re-write the mapreduce function to be completely generic by calling create_workers
+def mapreduce(worker_class, input_class, config):
+    workers = worker_class.create_workers(input_class, config)
+    return execute(workers)
+
+# Run on test files
+config = {'data_dir': tmpdir}
+result = mapreduce(LineCountWorker, PathInputData, config)
+print(f'There are {result} lines')
+
+## This now allows for the ability to flexibly create GenericInputData or GenericWorker subclasses
