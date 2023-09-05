@@ -2051,3 +2051,130 @@ result = mapreduce(LineCountWorker, PathInputData, config)
 print(f'There are {result} lines')
 
 ## This now allows for the ability to flexibly create GenericInputData or GenericWorker subclasses
+
+## Item 40: Initialize Parent Classes with super
+"""
+- Python's standard method resolution order (MRO) solves the problems
+of superclass initialization order and diamond inheritance.
+- Use the super built-in function with zero arguments to initialize
+parent classes.
+"""
+
+# Simple (but potentially error prone) way of initializing a parent class from a child class
+class MyBaseClass:
+    def __init__(self, value):
+        self.value = value
+
+class MyChildClass(MyBaseClass):
+    def __init__(self):
+        MyBaseClass.__init__(self, 5)  # Can lead to unpredictable behaviour
+
+class TimesTwo:
+    def __init__(self):
+        self.value *= 2
+
+class PlusFive:
+    def __init__(self):
+        self.value += 5
+
+class OneWay(MyBaseClass, TimesTwo, PlusFive):
+    def __init__(self, value):
+        MyBaseClass.__init__(self, value)
+        TimesTwo.__init__(self)
+        PlusFive.__init__(self)
+
+foo = OneWay(5)
+# MyBaseClass.__init__(self, value), value == 5
+# TimesTwo.__init__(self), value == 5 * 2 = 10
+# PlusFive.__init__(self), value == 10 + 5 = 15
+print('First ordering value is (5 * 2) + 5 =', foo.value)
+
+# Slightly different order in the class set-up
+## This class's behavior doesn't match the order of the parent classes in its definition
+class AnotherWay(MyBaseClass, PlusFive, TimesTwo):
+    def __init__(self, value):
+        MyBaseClass.__init__(self, value)
+        TimesTwo.__init__(self)
+        PlusFive.__init__(self)
+
+bar = AnotherWay(5)
+# MyBaseClass.__init__(self, value), value == 5
+# TimesTwo.__init__(self), value == 5 * 2 = 10
+# PlusFive.__init__(self), value == 10 + 5 = 15
+print('Second ordering value is', bar.value)
+
+# Issue with diamond inheritance
+class TimesSeven(MyBaseClass):
+    def __init__(self, value):
+        MyBaseClass.__init__(self, value)
+        self.value *= 7
+
+class PlusNine(MyBaseClass):
+    def __init__(self, value):
+        MyBaseClass.__init__(self, value)
+        self.value += 9
+
+class ThisWay(TimesSeven, PlusNine):
+    def __init__(self, value):
+        TimesSeven.__init__(self, value)
+        PlusNine.__init__(self, value)
+
+foo = ThisWay(5)
+# TimesSeven.__init__(self, value), value == 5 * 7 = 35
+# PlusNine.__init__(self, value), value == 5 + 9 == 14 (MyBaseClass gets called again)
+print('Should be (5 * 7) + 9 = 44 but is', foo.value)  # value is 14
+
+# Solve this problem via super
+## Same base class
+class MyBaseClass:
+    def __init__(self, value):
+        self.value = value
+
+# Different sub classes with super to initialize the parent class
+class TimesSevenCorrect(MyBaseClass):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value *= 7
+
+class PlusNineCorrect(MyBaseClass):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value += 9
+
+class GoodWay(TimesSevenCorrect, PlusNineCorrect):
+    def __init__(self, value):
+        super().__init__(value)
+
+foo = GoodWay(5)
+print('Should be 7 * (5 + 9) = 98 and is', foo.value)
+
+# Print Method Resolution Order (MRO)
+mro_str = '\n'.join(repr(cls) for cls in GoodWay.mro())
+print(mro_str)
+
+## When GoodWay(5) is called, it calls TimesSevenCorrect.__init__, which calls
+## PlusNineCorrect.__init__, which calls MyBaseClass.__init__
+## All initialization methods then do their work in opposite order
+### MyBaseClass.__init__, value == 5
+### PlusNineCorrect.__init__, value == 5 + 9
+### TimesSevenCorrect.__init__, value == (5 + 9) * 7
+
+# Using super without any parameters is the same as providing parameters
+class ExplicitTrisect(MyBaseClass):
+    def __init__(self, value):
+        super(ExplicitTrisect, self).__init__(value)
+        self.value /= 3
+
+class AutomaticTrisect(MyBaseClass):
+    def __init__(self, value):
+        super(__class__, self).__init__(value)
+        self.value /= 3
+
+class ImplicitTrisect(MyBaseClass):
+    def __init__(self, value):
+        super().__init__(value)
+        self.value /= 3
+
+assert ExplicitTrisect(9).value == 3
+assert AutomaticTrisect(9).value == 3
+assert ImplicitTrisect(9).value == 3
