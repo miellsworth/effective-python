@@ -2307,3 +2307,144 @@ roundtrip = deserialized.to_json()
 assert json.loads(serialized) == json.loads(roundtrip)
 
 # Yeah I don't really know what's going on here....
+
+## Item 42: Prefer Public Attributes Over Private Ones
+"""
+- Private attributes aren't rigorously enforced by the Python compiler.
+- Plan from the beginning to allow subclasses to do more with your
+internal APIs and attributes instead of choosing to lock them out.
+- Use documentation of protected fields to guide subclasses instead of
+trying to force access control with private attributes.
+- Only consider using private attributes to avoid naming conflicts
+with subclasses that are out of your control.
+"""
+
+# Class attributes can be public or private
+class MyObject:
+    def __init__(self):
+        self.public_field = 5
+        self.__private_field = 10
+    
+    def get_private_field(self):
+        return self.__private_field
+
+# Access a public field
+foo = MyObject()
+assert foo.public_field == 5
+
+# Access a private field (using the method of the containing class)
+assert foo.get_private_field() == 10
+
+# Cannot access a private attribute directly from outside of the class
+foo.__private_field  # throws an error
+
+# Class methods have access to private attributes
+class MyOtherObject:
+    def __init__(self):
+        self.__private_field = 71
+    
+    @classmethod
+    def get_private_field_of_instance(cls, instance):
+        return instance.__private_field
+
+bar = MyOtherObject()
+assert MyOtherObject.get_private_field_of_instance(bar) == 71
+
+# Subclasses cannot access private attributes of its parent's class
+class MyParentObject:
+    def __init__(self):
+        self.__private_field = 71
+
+class MyChildObject(MyParentObject):
+    def get_private_field(self):
+        return self.__private_field
+
+baz = MyChildObject()
+baz.get_private_field() # throws an error
+
+# With a bit of trickery, you can access the parent class's private attribute
+# because Python converts _MyChildObject__private_field to _MyParentObject__private_field
+assert baz._MyParentObject__private_field == 71
+
+# The object's attribute dictionary shows the private attributes stored with the names
+# as they appear after the naming transformation
+print(baz.__dict__)
+
+# Using private fields to indicate an internal API that shouldn't be 
+# accessed (externally or by subclasses) is the wrong approach
+class MyStringClass:
+    def __init__(self, value):
+        self.__value = value
+    
+    def get_value(self):
+        return str(self.__value)
+foo = MyStringClass(5)
+assert foo.get_value() == '5'
+
+# This creates issues when you want to subclass your class to add new behaviour
+class MyIntegerSubclass(MyStringClass):
+    def get_value(self):
+        return int(self._MyStringClass__value)
+
+foo = MyIntegerSubclass('5')
+assert foo.get_value() == 5
+
+
+class MyBaseClass:
+    def __init__(self, value):
+        self.__value = value   
+    def get_value(self):
+        return self.__value
+
+class MyStringClass(MyBaseClass):
+    def get_value(self):
+        return str(super().get_value()) # Updated
+
+class MyIntegerSubclass(MyStringClass):
+    def get_value(self):
+        return int(self._MyStringClass__value) # Not updated
+
+foo = MyIntegerSubclass(5)
+foo.get_value()  # throws an error
+
+# It's better to use protected attributes that are well documented
+class MyStringClass:
+    def __init__(self, value):
+    # This stores the user-supplied value for the object.
+    # It should be coercible to a string. Once assigned in
+    # the object it should be treated as immutable.
+        self._value = value   
+    def get_value(self):
+        return self._value
+
+# The only time to use private attributes is if you're worried about naming conflicts in subclasses
+class ApiClass:
+    def __init__(self):
+        self._value = 5
+
+    def get(self):
+        return self._value
+
+class Child(ApiClass):
+    def __init__(self):
+        super().__init__()
+        self._value = 'hello' # Conflicts
+
+a = Child()
+print(f'{a.get()} and {a._value} should be different')
+
+# Using private attributes prevents this conflict
+class ApiClass:
+    def __init__(self):
+        self.__value = 5 # Double underscore
+
+    def get(self):
+        return self.__value # Double underscore
+
+class Child(ApiClass):
+    def __init__(self):
+        super().__init__()
+        self._value = 'hello' # OK!
+
+a = Child()
+print(f'{a.get()} and {a._value} are different')
