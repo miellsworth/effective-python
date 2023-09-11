@@ -2578,3 +2578,145 @@ tree = BetterNode(
 
 print('Index of 7 is', tree.index(7))
 print('Count of 10 is', tree.count(10))
+
+# Chapter 6 - Metaclasses and Attributes
+"""
+Metaclasses let you intercept Python's class statement and provide
+special behavior each time a class is defined. Along with Python's
+object-oriented constructs, dynamically customizing attribute accesses 
+provide wonderful tools to ease the transition from simple classes to complex ones.
+There are pitfalls though. Dynamic attributes enable you to override objects and 
+cause unexpected side effects. Metaclasses can create extremely bizarre behaviors 
+that are unapproachable to newcomers. Follow the rule of least surprise.
+"""
+
+## Item 44: Use Plan Attributes Instead of Setter and Getter Methods
+"""
+- Define new class interfaces using simple public attributes and avoid
+defining setter and getter methods.
+- Use @property to define special behavior when attributes are
+accessed on your objects, if necessary.
+- Follow the rule of least surprise and avoid odd side effects in your
+@property methods.
+- Ensure that @property methods are fast; for slow or complex work—
+especially involving I/O or causing side effects—use normal methods
+instead.
+"""
+
+# A typical approach to implementing getter and setter methods
+class OldResistor:
+    def __init__(self, ohms):
+        self._ohms = ohms
+
+    # getter method
+    def get_ohms(self):
+        return self._ohms
+
+    # setter method
+    def set_ohms(self, ohms):
+        self._ohms = ohms
+
+# Although simple to use, these methods are not pythonic
+r0 = OldResistor(50e3)
+print('Before:', r0.get_ohms())
+r0.set_ohms(10e3)
+print('After: ', r0.get_ohms())
+
+# These methods are especially clumsy for operations like incrementing in place
+r0.set_ohms(r0.get_ohms() - 4e3)
+assert r0.get_ohms() == 6e3
+
+# In Python, you don't need to implement explicit setter and getter methods
+class Resistor:
+    def __init__(self, ohms):
+        # Always start your implementations with simple public attributes
+        self.ohms = ohms
+        self.voltage = 0
+        self.current = 0
+
+r1 = Resistor(50e3)
+r1.ohms = 10e3
+
+# Operations like incrementing in place are now natural and clear
+r1.ohms += 5e3
+
+# If special behaviour is needed when an attribute is set, the @property decorator
+# can be used with its corresponding setter attribute
+class VoltageResistance(Resistor):
+    def __init__(self, ohms):
+        super().__init__(ohms)
+        self._voltage = 0
+    
+    @property
+    def voltage(self):
+        return self._voltage
+    
+    @voltage.setter
+    def voltage(self, voltage):
+        self._voltage = voltage
+        self.current = self._voltage / self.ohms
+
+# Assigning the voltage property will run the voltage setter method and update the current attribute
+r2 = VoltageResistance(1e3)
+print(f'Before: {r2.current:.2f} amps')
+r2.voltage = 10
+print(f'After: {r2.current:.2f} amps')
+
+# Specifying a setter on a property also enables type checking and validation on values passed to the class
+# This example ensures resistance > 0
+class BoundedResistance(Resistor):
+    def __init__(self, ohms):
+        super().__init__(ohms)
+    
+    @property
+    def ohms(self):
+        return self._ohms
+    
+    @ohms.setter
+    def ohms(self, ohms):
+        if ohms <= 0:
+            raise ValueError(f'ohms must be > 0; got {ohms}')
+        self._ohms = ohms
+
+# These examples raise exceptions
+r3 = BoundedResistance(1e3)
+r3.ohms = 0
+
+BoundedResistance(-5)
+
+# @property can be used to make attributes from the parent class immutable
+class FixedResistance(Resistor):
+    def __init__(self, ohms):
+        super().__init__(ohms)
+    
+    @property
+    def ohms(self):
+        return self._ohms
+    
+    @ohms.setter
+    def ohms(self, ohms):
+        if hasattr(self, '_ohms'):
+            raise AttributeError("Ohms is immutable")
+        self._ohms = ohms
+
+# This example raises an exception
+r4 = FixedResistance(1e3)
+r4.ohms = 2e3
+
+# Avoid surprises when using @property! Don't set other attributes in getter property methods
+class MysteriousResistor(Resistor):
+    @property
+    def ohms(self):
+        self.voltage = self._ohms * self.current  # NOPE!
+        return self._ohms
+    
+    @ohms.setter
+    def ohms(self, ohms):
+        self._ohms = ohms
+
+# Leads to bizarre behaviour
+r7 = MysteriousResistor(10)
+r7.current = 0.01
+print(f'Before: {r7.voltage:.2f}')
+r7.ohms
+print(f'After: {r7.voltage:.2f}')
