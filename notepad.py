@@ -2720,3 +2720,116 @@ r7.current = 0.01
 print(f'Before: {r7.voltage:.2f}')
 r7.ohms
 print(f'After: {r7.voltage:.2f}')
+
+## Item 45: Consider @property instead of refactoring attributes
+"""
+- Use @property to give existing instance attributes new functionality.
+- Make incremental progress toward better data models by using
+@property.
+- Consider refactoring a class and all call sites when you find yourself
+using @property too heavily.
+"""
+
+# Implement a leaky bucket quota using plain Python objects
+from datetime import datetime, timedelta
+
+# This class represents how much quota remains and the duration for which the quota will be available
+class Bucket:
+    def __init__(self, period):
+        self.period_delta = timedelta(seconds=period)
+        self.reset_time = datetime.now()
+        self.quota = 0
+    
+    def __repr__(self):
+        return f'Bucket(quota={self.quota})'
+
+# Whenever the bucket is filled, the amount of quota does not carry over from one period to the next
+def fill(bucket, amount):
+    now = datetime.now()
+    if (now - bucket.reset_time) > bucket.period_delta:
+        bucket.quota = 0
+        bucket.reset_time = now
+    bucket.quota += amount
+
+# Check to ensure the amount of quota is available before deducting
+def deduct(bucket, amount):
+    now = datetime.now()
+    if (now - bucket.reset_time) > bucket.period_delta:
+        return False # Bucket hasn't been filled this period
+    if bucket.quota - amount < 0:
+        return False # Bucket was filled, but not enough
+    bucket.quota -= amount
+    return True # Bucket had enough, quota consumed
+
+# Use the class by filling the bucket up
+bucket = Bucket(60)
+fill(bucket, 100)
+print(bucket)
+
+# Deduct the desired quota
+if deduct(bucket, 99):
+    print('Had 99 quota')
+else:
+    print('Not enough for 99 quota')
+    print(bucket)
+
+# Deduct more than the quota - bucket's quota remains unchanged
+if deduct(bucket, 3):
+    print('Had 3 quota')
+else:
+    print('Not enough for 3 quota')
+print(bucket)
+
+## This implementation is confusing because the starting quota level in the bucket is unknown
+
+# Fix this by tracking the max_quota issued and quota_consumed in the period
+class NewBucket:
+    def __init__(self, period):
+        self.period_delta = timedelta(seconds=period)
+        self.reset_time = datetime.now()
+        self.max_quota = 0
+        self.quota_consumed = 0
+
+    def __repr__(self):
+        return (f'NewBucket(max_quota={self.max_quota}, '
+                f'quota_consumed={self.quota_consumed})')
+    
+    # Use @property to compute current level of quota on the fly
+    @property
+    def quota(self):
+        return self.max_quota - self.quota_consumed
+    
+    # Ensure compatibility with fill and deduct functions
+    @quota.setter
+    def quota(self, amount):
+        delta = self.max_quota - amount
+        if amount == 0:
+            # Quota being reset for a new period
+            self.quota_consumed = 0
+            self.max_quota = 0
+        elif delta < 0:
+            # Quota being filled for the new period
+            assert self.quota_consumed == 0
+            self.max_quota = amount
+        else:
+            # Quota being consumed during the period
+            assert self.max_quota >= self.quota_consumed
+            self.quota_consumed += delta
+
+# Re-run the demo - produce the same results
+bucket = NewBucket(60)
+print('Initial', bucket)
+fill(bucket, 100)
+print('Filled', bucket)
+
+if deduct(bucket, 99):
+    print('Had 99 quota')
+else:
+    print('Not enough for 99 quota')
+print('Now', bucket)
+
+if deduct(bucket, 3):
+    print('Had 3 quota')
+else:
+    print('Not enough for 3 quota')
+    print('Still', bucket)
