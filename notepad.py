@@ -2833,3 +2833,164 @@ if deduct(bucket, 3):
 else:
     print('Not enough for 3 quota')
     print('Still', bucket)
+
+## Item 46: Use Descriptors for Reusable @property Methods
+"""
+- Reuse the behavior and validation of @property methods by defining
+your own descriptor classes.
+- Use WeakKeyDictionary to ensure that your descriptor classes don't
+cause memory leaks.
+- Don't get bogged down trying to understand exactly how
+__getattribute__ uses the descriptor protocol for getting and setting
+attributes.
+"""
+
+# Easy implementation of a @property method
+class Homework:
+    def __init__(self):
+        self._grade = 0
+    
+    @property
+    def grade(self):
+        return self._grade
+    
+    @grade.setter
+    def grade(self, value):
+        if not (0 <= value <= 100):
+            raise ValueError('Grade must be between 0 and 100')
+        self._grade = value
+
+galileo = Homework()
+galileo.grade = 95
+
+# A more tedious implementation of @property methods
+class Exam:
+    def __init__(self):
+        self._writing_grade = 0
+        self._math_grade = 0
+    
+    @staticmethod
+    def _check_grade(value):
+        if not (0 <= value <= 100):
+            raise ValueError('Grade must be between 0 and 100')
+    
+    # Repetitive and tedious!!
+    @property
+    def writing_grade(self):
+        return self._writing_grade
+    
+    @writing_grade.setter
+    def writing_grade(self, value):
+        self._check_grade(value)
+        self._writing_grade = value
+    
+    @property
+    def math_grade(self):
+        return self._math_grade
+    
+    @math_grade.setter
+    def math_grade(self, value):
+        self._check_grade(value)
+        self._math_grade = value
+
+# A better way - use a descriptor class instead of @property methods!
+class Grade:
+    def __get__(self, instance, instance_type):
+        ...
+    def __set__(self, instance, value):
+        ...
+
+class Exam:
+    # Class attributes
+    math_grade = Grade()
+    writing_grade = Grade()
+    science_grade = Grade()
+
+# An illustration of how the descriptor class is interpreted
+exam = Exam()
+exam.writing_grade = 40  # interpreted as Exam.__dict__['writing_grade'].__set__(exam, 40)
+
+exam.writing_grade  # interpreted as Exam.__dict__['writing_grade'].__get__(exam, Exam)
+
+# A first attempt at implementing the Grade descriptor class - wrong and broken :(
+class Grade:
+    def __init__(self):
+        self._value = 0
+    
+    def __get__(self, instance, instance_type):
+        return self._value
+    
+    def __set__(self, instance, value):
+        if not (0 <= value <= 100):
+            raise ValueError('Grade must be between 0 and 100')
+        self._value = value
+
+# Accessing multiple attributes on a single Exam instance works as expected
+class Exam:
+    math_grade = Grade()
+    writing_grade = Grade()
+    science_grade = Grade()
+
+first_exam = Exam()
+first_exam.writing_grade = 82
+first_exam.science_grade = 99
+print('Writing', first_exam.writing_grade)
+print('Science', first_exam.science_grade)
+
+# Accessing attributes on multiple Exam instances causes unexpected behaviour
+second_exam = Exam()
+second_exam.writing_grade = 75
+print(f'Second {second_exam.writing_grade} is right')
+print(f'First {first_exam.writing_grade} is wrong; ' f'should be 82')
+
+## A single Grade instance is shared across all Exam instances for the class attribute writing_grade
+## The Grade instance for this attribute is constructed once when the Exam class is first defined, not
+## each time an Exam instance is created
+
+# Solve the issue by getting the Grade class to keep track of its value for each unique Exam instance
+class Grade:
+    def __init__(self):
+        self._values = {}
+    
+    def __get__(self, instance, instance_type):
+        if instance is None:
+            return self
+        return self._values.get(instance, 0)
+    
+    def __set__(self, instance, value):
+        if not (0 <= value <= 100):
+            raise ValueError('Grade must be between 0 and 100')
+        self._values[instance] = value
+
+## This implementation has issues as well, specifically with memory leakage
+## The _values dictionary holds a reference to every instance of Exam ever passed to __set__
+## Instances never have their reference count go to zero, preventing cleanup by the garbage collector
+
+# Solve this issue by using WeakKeyDictionary - all problems fixed!
+from weakref import WeakKeyDictionary
+
+class Grade:
+    def __init__(self):
+        self._values = WeakKeyDictionary()  # change {} to WeakKeyDictionary()
+    
+    def __get__(self, instance, instance_type):
+        if instance is None:
+            return self
+        return self._values.get(instance, 0)
+    
+    def __set__(self, instance, value):
+        if not (0 <= value <= 100):
+            raise ValueError('Grade must be between 0 and 100')
+        self._values[instance] = value
+
+class Exam:
+    math_grade = Grade()
+    writing_grade = Grade()
+    science_grade = Grade()
+
+first_exam = Exam()
+first_exam.writing_grade = 82
+second_exam = Exam()
+second_exam.writing_grade = 75
+print(f'First {first_exam.writing_grade} is right')
+print(f'Second {second_exam.writing_grade} is right')
