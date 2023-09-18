@@ -2994,3 +2994,150 @@ second_exam = Exam()
 second_exam.writing_grade = 75
 print(f'First {first_exam.writing_grade} is right')
 print(f'Second {second_exam.writing_grade} is right')
+
+## Item 47: Use __getattr__, __getattribute__, and __setattr__ for Lazy Attributes
+"""
+- Use __getattr__ and __setattr__ to lazily load and save attributes
+for an object.
+- Understand that __getattr__ only gets called when accessing a
+missing attribute, whereas __getattribute__ gets called every time
+any attribute is accessed.
+- Avoid infinite recursion in __getattribute__ and __setattr__
+by using methods from super() (i.e., the object class) to access
+instance attributes.
+"""
+
+# If a class defines __getattr__, that method is called every time an attribute
+# can't be found in an object's instance dictionary
+class LazyRecord:
+    def __init__(self):
+        self.exists = 5
+
+    def __getattr__(self, name):
+        value = f'Value for {name}'  # Set value for missing attribute
+        setattr(self, name, value)
+        return value
+
+
+data = LazyRecord()
+print('Before:', data.__dict__)  # No value for foo
+
+# Access the missing property foo, call the __getattr__ method and mutates the instance dict
+print('foo: ', data.foo)
+print('After: ', data.__dict__)
+
+# Add logging to LazyRecord to show when __getattr__ is called
+class LoggingLazyRecord(LazyRecord):
+    def __getattr__(self, name):
+        print(f'* Called __getattr__({name!r}), '
+              f'populating instance dictionary')
+        result = super().__getattr__(name)  # avoid infinite recursion with super().__getattr__
+        print(f'* Returning {result!r}')
+        return result
+
+data = LoggingLazyRecord()
+print('exists: ', data.exists)
+print('First foo: ', data.foo)
+print('Second foo: ', data.foo)
+
+# Use __getattribute__ in a new class to show that is called each time an attribute is accessed on an object
+class ValidatingRecord:
+    def __init__(self):
+        self.exists = 5
+    
+    def __getattribute__(self, name):
+        print(f'* Called __getattribute__({name!r})')
+        try:
+            value = super().__getattribute__(name)
+            print(f'* Found {name!r}, returning {value!r}')
+            return value
+        except AttributeError:
+            value = f'Value for {name}'
+        print(f'* Setting {name!r} to {value!r}')
+        setattr(self, name, value)
+        return value
+
+data = ValidatingRecord()
+print('exists: ', data.exists)  # __getattribute__ is called even when an attribute exists
+print('First foo: ', data.foo)  # __getattribute__ is called on missing attributes
+print('Second foo: ', data.foo)  # __getattribute__ is called even though foo exists now
+
+# If a dynamically accessed property shouldn't exist, raise AttributeError to cause Python's
+# standard missing property behaviour for both __getattr__ and __getattribute__
+class MissingPropertyRecord:
+    def __getattr__(self, name):
+        if name == 'bad_name':
+            raise AttributeError(f'{name} is missing')
+        ...
+
+data = MissingPropertyRecord()
+data.bad_name
+
+# Python code implementing generic functionality relies on:
+## hasatrr - determine when property exist
+## getattr - retrieve property values
+data = LoggingLazyRecord() # Implements __getattr__
+print('Before: ', data.__dict__)
+print('Has first foo: ', hasattr(data, 'foo'))
+print('After: ', data.__dict__)
+print('Has second foo: ', hasattr(data, 'foo'))
+
+# Classes that implement __getattribute__ have that method called each time
+# hasattr or getattr is used within an instance
+data = ValidatingRecord() # Implements __getattribute__
+print('Has first foo: ', hasattr(data, 'foo'))
+print('Has second foo: ', hasattr(data, 'foo'))
+
+# Lazily push data back to database when values assigned to python object
+# Use __setattr__ (which is called every time an attribute is assigned on an instance)
+class SavingRecord:
+    def __setattr__(self, name, value):
+        # Save some data for the record
+        ...
+        super().__setattr__(name, value)
+
+# Logging subclass
+class LoggingSavingRecord(SavingRecord):
+    def __setattr__(self, name, value):
+        print(f'* Called __setattr__({name!r}, {value!r})')
+        super().__setattr__(name, value)
+
+data = LoggingSavingRecord()
+print('Before: ', data.__dict__)
+data.foo = 5
+print('After: ', data.__dict__)
+data.foo = 7
+print('Finally:', data.__dict__)
+
+## Issue with __setattr__ and __getattribute__ is that they're called on every attribute
+## access, even if you don't want them to be
+
+# Have attribute accesses on a python object look up keys in an associated dictionary
+class BrokenDictionaryRecord:
+    def __init__(self, data):
+        self._data = {}
+    
+    def __getattribute__(self, name):
+        print(f'* Called __getattribute__({name!r})')
+        return self._data[name]
+
+# This will throw a RecursionError
+data = BrokenDictionaryRecord({'foo': 3})
+data.foo
+
+## __getattribute__ accesses self._data which causes __getattribute__ to run again and so on...
+
+# Use super().__getattribute__ to avoid recursion
+class DictionaryRecord:
+    def __init__(self, data):
+        self._data = data
+    
+    def __getattribute__(self, name):
+        print(f'* Called __getattribute__({name!r})')
+        data_dict = super().__getattribute__('_data')  # Avoids recursion
+        return data_dict[name]
+
+data = DictionaryRecord({'foo': 3})
+print('foo: ', data.foo)
+
+## __setattr__ methods that modify attributes on an object also need to use super().__setattr__
