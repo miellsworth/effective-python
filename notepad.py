@@ -3141,3 +3141,183 @@ data = DictionaryRecord({'foo': 3})
 print('foo: ', data.foo)
 
 ## __setattr__ methods that modify attributes on an object also need to use super().__setattr__
+
+## Item 48: Validate Subclasses with __init_subclass__
+"""
+- The __new__ method of metaclasses is run after the class statement's
+entire body has been processed.
+- Metaclasses can be used to inspect or modify a class after it's
+defined but before it's created, but they're often more heavyweight
+than what you need.
+- Use __init_subclass__ to ensure that subclasses are well formed
+at the time they are defined, before objects of their type are
+constructed.
+- Be sure to call super().__init_subclass__ from within your class's
+__init_subclass__ definition to enable validation in multiple layers
+of classes and multiple inheritance.
+"""
+
+# Metaclass is defined by inheriting from type
+# Default case - metaclass receives the contents of associated class statements in its
+# __new__ method
+class Meta(type):
+    def __new__(meta, name, bases, class_dict):
+        print(f'* Running {meta}.__new__ for {name}')
+        print('Bases:', bases)
+        print(class_dict)
+        return type.__new__(meta, name, bases, class_dict)
+
+class MyClass(metaclass=Meta):
+    stuff = 123
+    
+    def foo(self):
+        pass
+
+class MySubclass(MyClass):
+    other = 567
+
+    def bar(self):
+        pass
+
+# Validate parameters of an associated class before it's defined - polygon example
+class ValidatePolygon(type):
+    def __new__(meta, name, bases, class_dict):
+    # Only validate subclasses of the Polygon class
+        if bases:
+            if class_dict['sides'] < 3:
+                raise ValueError('Polygons need 3+ sides')
+        return type.__new__(meta, name, bases, class_dict)
+
+class Polygon(metaclass=ValidatePolygon):
+    sides = None # Must be specified by subclasses
+    
+    @classmethod
+    def interior_angles(cls):
+        return (cls.sides - 2) * 180
+
+class Triangle(Polygon):
+    sides = 3
+
+class Rectangle(Polygon):
+    sides = 4
+
+class Nonagon(Polygon):
+    sides = 9
+
+assert Triangle.interior_angles() == 180
+assert Rectangle.interior_angles() == 360
+assert Nonagon.interior_angles() == 1260
+
+# Attempt to define a polygon with fewer than three sides
+print('Before class')
+class Line(Polygon):
+    print('Before sides')
+    sides = 2
+    print('After sides')
+
+print('After class')
+
+## The class statement fails immediately after the class statement body
+## The program will not be able to start running
+
+# A simplified syntax using __init_subclass__ and avoiding metaclasses
+class BetterPolygon:
+    sides = None # Must be specified by subclasses
+    
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        if cls.sides < 3:
+            raise ValueError('Polygons need 3+ sides')
+    
+    @classmethod
+    def interior_angles(cls):
+        return (cls.sides - 2) * 180
+
+class Hexagon(BetterPolygon):
+    sides = 6
+
+assert Hexagon.interior_angles() == 720
+
+# Attempt to define a polygon with fewer than three sides
+print('Before class')
+
+class Point(BetterPolygon):
+    sides = 1
+
+print('After class')
+
+# Default metaclasses can only specify a single metaclass per class definition
+class ValidateFilled(type):
+    def __new__(meta, name, bases, class_dict):
+    # Only validate subclasses of the Filled class
+        if bases:
+            if class_dict['color'] not in ('red', 'green'):
+                raise ValueError('Fill color must be supported')
+        return type.__new__(meta, name, bases, class_dict)
+
+class Filled(metaclass=ValidateFilled):
+    color = None # Must be specified by subclasses
+
+# Attempting to use Filled and Polygon metaclasses will throw an error
+class RedPentagon(Filled, Polygon):
+    color = 'red'
+    sides = 5
+
+# Solve this issue using __init_subclass__
+class Filled:
+    color = None # Must be specified by subclasses
+    
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        if cls.color not in ('red', 'green', 'blue'):
+            raise ValueError('Fills need a valid color')
+
+class RedTriangle(Filled, Polygon):
+    color = 'red'
+    sides = 3
+
+ruddy = RedTriangle()
+assert isinstance(ruddy, Filled)
+assert isinstance(ruddy, Polygon)
+
+print('Before class')
+
+# Specify the sides incorrectly
+class BlueLine(Filled, Polygon):
+    color = 'blue'
+    sides = 2
+
+print('After class')
+
+# Specify the colour incorrectly
+print('Before class')
+
+class BeigeSquare(Filled, Polygon):
+    color = 'beige'
+    sides = 4
+
+print('After class')
+
+# Use __init_subclass__ in complex cases like diamond inheritance
+class Top:
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        print(f'Top for {cls}')
+
+class Left(Top):
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        print(f'Left for {cls}')
+
+class Right(Top):
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        print(f'Right for {cls}')
+
+class Bottom(Left, Right):
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        print(f'Bottom for {cls}')
+
+## Top.__init_subclass__ is called only a single time for each class
+## even though there are two paths to it
