@@ -3321,3 +3321,145 @@ class Bottom(Left, Right):
 
 ## Top.__init_subclass__ is called only a single time for each class
 ## even though there are two paths to it
+
+## Item 49: Register Class Existence with __init_subclass__
+"""
+- Class registration is a helpful pattern for building modular Python
+programs.
+- Metaclasses let you run registration code automatically each time a
+base class is subclassed in a program.
+- Using metaclasses for class registration helps you avoid errors by
+ensuring that you never miss a registration call.
+- Prefer __init_subclass__ over standard metaclass machinery
+because it's clearer and easier for beginners to understand.
+"""
+
+# Implement a serialized representation of a python object using JSON
+import json
+class Serializable:
+    def __init__(self, *args):
+        self.args = args
+    
+    def serialize(self):
+        return json.dumps({'args': self.args})
+
+# This class makes it easy to serialize simple, immutable data structures
+class Point2D(Serializable):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return f'Point2D({self.x}, {self.y})'
+
+point = Point2D(5, 3)
+print('Object: ', point)
+print('Serialized:', point.serialize())
+
+# Deserialize the JSON string and construct the Point2D object
+class Deserializable(Serializable):
+    @classmethod
+    def deserialize(cls, json_data):
+        params = json.loads(json_data)
+        return cls(*params['args'])
+
+class BetterPoint2D(Deserializable):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.x = x
+        self.y = y
+
+    def __repr__(self):
+        return f'Point2D({self.x}, {self.y})'
+
+before = BetterPoint2D(5, 3)
+print('Before: ', before)
+data = before.serialize()
+print('Serialized:', data)
+after = BetterPoint2D.deserialize(data)
+print('After: ', after)
+
+## Unfortunately, this only works if you know the intended type of the serialized data
+
+# One common function that can deserialize a large number of classes back to a corresponding python object
+class BetterSerializable:
+    def __init__(self, *args):
+        self.args = args
+
+    def serialize(self):
+        return json.dumps({
+            'class': self.__class__.__name__,
+            'args': self.args,
+        })
+
+    def __repr__(self):
+        name = self.__class__.__name__
+        args_str = ', '.join(str(x) for x in self.args)
+        return f'{name}({args_str})'
+
+# This allows for mapping of class names back to constructors for those objects
+# The general deserialize function works for any classes passed to register_class
+registry = {}
+
+def register_class(target_class):
+    registry[target_class.__name__] = target_class
+
+def deserialize(data):
+    params = json.loads(data)
+    name = params['class']
+    target_class = registry[name]
+    return target_class(*params['args'])
+
+# To ensure deserialize works properly, call register_class for every class that may need to be
+# deserialized in the future
+class EvenBetterPoint2D(BetterSerializable):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.x = x
+        self.y = y
+
+register_class(EvenBetterPoint2D)
+
+# We can now deserialize an arbitrary JSON string without having to know which class it contains
+before = EvenBetterPoint2D(5, 3)
+print('Before: ', before)
+data = before.serialize()
+print('Serialized:', data)
+after = deserialize(data)
+print('After: ', after)
+
+# This approach is error prone as we can forget to call register_class
+class Point3D(BetterSerializable):
+    def __init__(self, x, y, z):
+        super().__init__(x, y, z)
+        self.x = x
+        self.y = y
+        self.z = z
+
+# This will throw an error at runtime when deserialize is used because 
+# register_class was not called on Point3D
+point = Point3D(5, 9, -4)
+data = point.serialize()
+deserialize(data)
+
+## Even though BetterSerializable is subclassed, its features aren't available until
+## register_class is called
+
+# This method (using metaclasses/__init_subclass__) ensures register_class is called in all cases by
+# intercepting the class statement when subclasses are defined
+class BetterRegisteredSerializable(BetterSerializable):
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        register_class(cls)
+
+class Vector1D(BetterRegisteredSerializable):
+    def __init__(self, magnitude):
+        super().__init__(magnitude)
+        self.magnitude = magnitude
+
+before = Vector1D(6)
+print('Before: ', before)
+data = before.serialize()
+print('Serialized:', data)
+print('After: ', deserialize(data))
