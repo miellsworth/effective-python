@@ -3463,3 +3463,132 @@ print('Before: ', before)
 data = before.serialize()
 print('Serialized:', data)
 print('After: ', deserialize(data))
+
+## Item 50: Annotate Class Attributes with __set_name__
+"""
+- Metaclasses enable you to modify a class's attributes before the
+class is fully defined.
+- Descriptors and metaclasses make a powerful combination for
+declarative behavior and runtime introspection.
+- Define __set_name__ on your descriptor classes to allow them to
+take into account their surrounding class and its property names.
+- Avoid memory leaks and the weakref built-in module by having
+descriptors store data they manipulate directly within a class's
+instance dictionary.
+"""
+
+# Define a class that represents a row in a customer database
+# Start with the Field class which is a descriptor class connecting attributes to column names
+class Field:
+    def __init__(self, name):
+        self.name = name
+        self.internal_name = '_' + self.name
+    
+    def __get__(self, instance, instance_type):
+        if instance is None:
+            return self
+        return getattr(instance, self.internal_name, '')
+   
+    def __set__(self, instance, value):
+        setattr(instance, self.internal_name, value)
+
+# Define the class representing the row
+class Customer:
+    # Class attributes
+    first_name = Field('first_name')
+    last_name = Field('last_name')
+    prefix = Field('prefix')
+    suffix = Field('suffix')
+
+# Use the class
+cust = Customer()
+print(f'Before: {cust.first_name!r} {cust.__dict__}')
+
+cust.first_name = 'Euclid'
+print(f'After: {cust.first_name!r} {cust.__dict__}')
+
+## The Customer class definition is redundant
+## first_name = Field('first_name')
+
+# Eliminate redundancy using a metaclass
+class Meta(type):
+    def __new__(meta, name, bases, class_dict):
+        for key, value in class_dict.items():
+            if isinstance(value, Field):
+                value.name = key
+                value.internal_name = '_' + key
+        cls = type.__new__(meta, name, bases, class_dict)
+        return cls
+
+class DatabaseRow(metaclass=Meta):
+    pass
+
+class Field:
+    def __init__(self):
+        # These will be assigned by the metaclass (Meta.__new__)
+        self.name = None
+        self.internal_name = None
+    
+    def __get__(self, instance, instance_type):
+        if instance is None:
+            return self
+        return getattr(instance, self.internal_name, '')
+    
+    def __set__(self, instance, value):
+        setattr(instance, self.internal_name, value)
+
+# No more redundancy!
+class BetterCustomer(DatabaseRow):
+    first_name = Field()
+    last_name = Field()
+    prefix = Field()
+    suffix = Field()
+
+# Identical behaviour
+cust = BetterCustomer()
+print(f'Before: {cust.first_name!r} {cust.__dict__}')
+cust.first_name = 'Euler'
+print(f'After: {cust.first_name!r} {cust.__dict__}')
+
+# There are issues if you forget to subclass DatabaseRow
+class BrokenCustomer:
+    first_name = Field()
+    last_name = Field()
+    prefix = Field()
+    suffix = Field()
+
+# This will throw an error
+cust = BrokenCustomer()
+cust.first_name = 'Mersenne'
+
+# Use __set_name__ to solve this problem
+class Field:
+    def __init__(self):
+        self.name = None
+        self.internal_name = None
+
+    # This removes the need for the metaclass entirely!
+    def __set_name__(self, owner, name):  # This does what Meta.__new__ did
+        # Called on class creation for each descriptor
+        self.name = name
+        self.internal_name = '_' + name
+    
+    def __get__(self, instance, instance_type):
+        if instance is None:
+            return self
+        return getattr(instance, self.internal_name, '')
+    
+    def __set__(self, instance, value):
+        setattr(instance, self.internal_name, value)
+
+# No subclass anymore but it works!
+class FixedCustomer:
+    first_name = Field()
+    last_name = Field()
+    prefix = Field()
+    suffix = Field()
+
+cust = FixedCustomer()
+print(f'Before: {cust.first_name!r} {cust.__dict__}')
+cust.first_name = 'Mersenne'
+print(f'After: {cust.first_name!r} {cust.__dict__}')
