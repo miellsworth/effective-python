@@ -3592,3 +3592,193 @@ cust = FixedCustomer()
 print(f'Before: {cust.first_name!r} {cust.__dict__}')
 cust.first_name = 'Mersenne'
 print(f'After: {cust.first_name!r} {cust.__dict__}')
+
+## Item 51: Prefer Class Decorators Over Metaclasses for Composable Class Extensions
+"""
+- A class decorator is a simple function that receives a class instance
+as a parameter and returns either a new class or a modified version
+of the original class.
+- Class decorators are useful when you want to modify every method
+or attribute of a class with minimal boilerplate.
+- Metaclasses can't be composed together easily, while many class
+decorators can be used to extend the same class without conflicts.
+"""
+
+# Illustration of where metaclasses fall short when customizing class creation
+from functools import wraps
+
+# Decorator that prints arguments, return values and exceptions raised
+def trace_func(func):
+    if hasattr(func, 'tracing'): # Only decorate once
+        return func
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        result = None
+        try:
+            result = func(*args, **kwargs)
+            return result
+        except Exception as e:
+            result = e
+            raise
+        finally:
+            print(f'{func.__name__}({args!r}, {kwargs!r}) -> '
+                  f'{result!r}')
+    wrapper.tracing = True
+    return wrapper
+
+# Apply decorator to various special methods in a new dict subclass
+class TraceDict(dict):
+    @trace_func
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @trace_func
+    def __setitem__(self, *args, **kwargs):
+        return super().__setitem__(*args, **kwargs)
+
+    @trace_func
+    def __getitem__(self, *args, **kwargs):
+        return super().__getitem__(*args, **kwargs)
+    
+    ...
+
+# Verify that these methods are decorated
+trace_dict = TraceDict([('hi', 1)])
+trace_dict['there'] = 2
+trace_dict['hi']
+try:
+    trace_dict['does not exist']
+except KeyError:
+    pass # Expected
+
+## The above code requires that all methods are redefined with the @trace_func decorator
+## This is redundant, hard to read and error prone
+## If a new method is added to the dict superclass, it won't be decorated unless it is also
+## defined in TraceDict
+
+# You can solve these issues by using a metaclass to automatically decorate all methods of a class
+# But there are issues with this code as well
+import types
+trace_types = (
+    types.MethodType,
+    types.FunctionType,
+    types.BuiltinFunctionType,
+    types.BuiltinMethodType,
+    types.MethodDescriptorType,
+    types.ClassMethodDescriptorType
+)
+
+class TraceMeta(type):
+    def __new__(meta, name, bases, class_dict):
+        klass = super().__new__(meta, name, bases, class_dict)
+    
+        for key in dir(klass):
+            value = getattr(klass, key)
+            if isinstance(value, trace_types):
+                wrapped = trace_func(value)
+                setattr(klass, key, wrapped)
+    
+        return klass
+
+# Declare dict subclass by using TraceMeta metaclass
+class TraceDict(dict, metaclass=TraceMeta):
+    pass
+
+trace_dict = TraceDict([('hi', 1)])
+trace_dict['there'] = 2
+trace_dict['hi']
+
+try:
+    trace_dict['does not exist']
+except KeyError:
+    pass # Expected
+
+# If TraceMeta is used when a superclass already has specified a metaclass, it will fail
+class OtherMeta(type):
+    pass
+
+class SimpleDict(dict, metaclass=OtherMeta):
+    pass
+
+## Fails because TraceMeta does not inherit from OtherMeta
+class TraceDict(SimpleDict, metaclass=TraceMeta):
+    pass
+
+# We can use metaclass inheritance to solve this problem by having OtherMeta inherit from TraceMeta
+# But there are issues with this as well
+class TraceMeta(type):
+    ...
+
+class OtherMeta(TraceMeta):
+    pass
+
+class SimpleDict(dict, metaclass=OtherMeta):
+    pass
+
+class TraceDict(SimpleDict, metaclass=TraceMeta):
+    pass
+
+trace_dict = TraceDict([('hi', 1)])
+trace_dict['there'] = 2
+trace_dict['hi']
+try:
+    trace_dict['does not exist']
+except KeyError:
+    pass # Expected
+
+## The above code won't work if the metaclass is from a library that we can't modify
+## Or if we want to use multiple utility metaclasses like TraceMeta at the same time
+
+# The solution to these problems - the class decorator
+def my_class_decorator(klass):
+    klass.extra_param = 'hello'
+    return klass
+
+@my_class_decorator
+class MyClass:
+    pass
+
+print(MyClass)
+print(MyClass.extra_param)
+
+# Use a class decorator to apply trace_func to all methods and functions of a class
+def trace(klass):
+    for key in dir(klass):
+        value = getattr(klass, key)
+        if isinstance(value, trace_types):
+            wrapped = trace_func(value)
+            setattr(klass, key, wrapped)
+    return klass
+
+# Apply this decorator to the TraceDict subclass. This will produce the same behaviour
+# as the metaclass example above
+@trace
+class TraceDict(dict):
+    pass
+
+trace_dict = TraceDict([('hi', 1)])
+trace_dict['there'] = 2
+trace_dict['hi']
+try:
+    trace_dict['does not exist']
+except KeyError:
+    pass # Expected
+
+# Works even though the class already has a metaclass
+class OtherMeta(type):
+    pass
+
+@trace
+class TraceDict(dict, metaclass=OtherMeta):
+    pass
+
+trace_dict = TraceDict([('hi', 1)])
+trace_dict['there'] = 2
+trace_dict['hi']
+try:
+    trace_dict['does not exist']
+except KeyError:
+    pass # Expected
+
+## The class decorator is great for extend classes in a composable way
