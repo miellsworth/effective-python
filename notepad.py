@@ -3781,4 +3781,157 @@ try:
 except KeyError:
     pass # Expected
 
-## The class decorator is great for extend classes in a composable way
+## The class decorator is great for extending classes in a composable way
+
+# Chapter 7 - Concurrency and Parallelism
+"""
+Concurrency enables a computer to seemingly do many things at once, providing an illusion
+that programs are running simultaneously. Parellelism actually enables a computer to do
+many things at once when multiple CPU cores are available. The key difference between
+concurrency and parallelism is speedup. Parallelism actually provides your program the ability
+to run faster while concurrency cannot.
+"""
+
+## Item 52: Use subprocess to Manage Child Processes
+"""
+- Use the subprocess module to run child processes and manage their
+input and output streams.
+- Child processes run in parallel with the Python interpreter, enabling
+you to maximize your usage of CPU cores.
+- Use the run convenience function for simple usage, and the Popen
+class for advanced usage like UNIX-style pipelines.
+- Use the timeout parameter of the communicate method to avoid deadlocks
+and hanging child processes.
+"""
+
+# The best choice for managing child processes is the subprocess built-in module
+import subprocess
+import os
+os.environ['COMSPEC'] = 'powershell'  # Required for Windows
+
+# The run function below starts a process, reads its output and verifies termination
+result = subprocess.run(
+    ['echo', 'Hello from the child!'],
+    capture_output=True,
+    shell=True,  # Required for Windows
+    encoding='utf-8')
+
+result.check_returncode()  # No exception means a clean exit
+print(result.stdout)
+
+# Child process run independently from their parent process, the Python interpreter
+# Creating a subprocess using Popen instead of run allows for polling of child process status
+# while Python does something else
+proc = subprocess.Popen(['sleep', '1'], shell=True)  # Required for Windows
+# proc = subprocess.Popen(['sleep', '1'])
+while proc.poll() is None:
+    print('Working...')
+    # Some time-consuming work here
+    import time
+    time.sleep(0.3)
+
+print('Exit status', proc.poll())
+
+
+# Decoupling child from parent process allows the parent to run many child processes in parallel
+import time
+
+start = time.time()
+sleep_procs = []
+for _ in range(10):
+    proc = subprocess.Popen(['sleep', '1'], shell=True)   # Required for Windows
+    # proc = subprocess.Popen(['sleep', '1'])
+    sleep_procs.append(proc)
+
+# Wait for I/O to finish and terminate with communicate
+for proc in sleep_procs:
+    proc.communicate()
+
+end = time.time()
+delta = end - start
+print(f'Finished in {delta:.3} seconds')
+
+## If processes were run in sequence, the delay would be ~10 seconds
+
+# You can also pipe data from a Python program to a subprocess and retrieve its output
+# Example below shows how the openssl command line tool can be used to encrypt data
+import os
+# On Windows, after installing OpenSSL, you may need to
+# alias it in your PowerShell path with a command like:
+# $env:path = $env:path + ";C:\Program Files\OpenSSL-Win64\bin"
+
+def run_encrypt(data):
+    env = os.environ.copy()
+    env['password'] = 'zf7ShyBhZOraQDdE/FiZpm/m/8f9X+M1'
+    proc = subprocess.Popen(
+        ['openssl', 'enc', '-des3', '-pass', 'env:password'],
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE)
+    proc.stdin.write(data)
+    proc.stdin.flush()  # Ensure that the child gets input
+    return proc
+
+# Pipe random bytes into the run_encrypt function to simulate input data
+procs = []
+for _ in range(3):
+    data = os.urandom(10)
+    proc = run_encrypt(data)
+    procs.append(proc)
+
+# Child processes run in parallel, consuming their input
+# This example waits for them to finish and then retrieves
+# their final output (random encrypted bytes)
+for proc in procs:
+    out, _ = proc.communicate()
+    print(out[-10:])
+
+# Chains of parallel processes (connect ouput of one child process to another)
+# Here, openssl is a subprocess used to generate a Whirlpool hash of the input stream
+def run_hash(input_stdin):
+    return subprocess.Popen(
+        ['openssl', 'dgst', '-whirlpool', '-binary'],
+        stdin=input_stdin,
+        stdout=subprocess.PIPE)
+
+# We can now start one set of processes to encrypt data and another set to subsequently 
+# hash their encrypted output
+encrypt_procs = []
+hash_procs = []
+for _ in range(3):
+    data = os.urandom(100)
+
+    encrypt_proc = run_encrypt(data)
+    encrypt_procs.append(encrypt_proc)
+
+    hash_proc = run_hash(encrypt_proc.stdout)
+    hash_procs.append(hash_proc)
+
+    # Ensure that the child consumes the input stream and
+    # the communicate() method doesn't inadvertently steal
+    # input from the child. Also lets SIGPIPE propagate to
+    # the upstream process if the downstream process dies.
+    encrypt_proc.stdout.close()
+    encrypt_proc.stdout = None
+
+# I/O between subprocesses happens automatically once started. Just wait for them
+# to finish and print the result
+for proc in encrypt_procs:
+    proc.communicate()
+    assert proc.returncode == 0
+
+for proc in hash_procs:
+    out, _ = proc.communicate()
+    print(out[-10:])
+    assert proc.returncode == 0
+
+# timeout argument in communicate helps terminate misbehaving subprocesses if they are taking too long
+proc = subprocess.Popen(['sleep', '10'], shell=True)  # Required for Windows
+# proc = subprocess.Popen(['sleep', '10'])
+try:
+    proc.communicate(timeout=0.1)
+except subprocess.TimeoutExpired:
+    proc.terminate()
+    proc.wait()
+
+print('Exit status', proc.poll())
