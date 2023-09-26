@@ -3935,3 +3935,107 @@ except subprocess.TimeoutExpired:
     proc.wait()
 
 print('Exit status', proc.poll())
+
+## Item 53: Use Threads for Blocking I/O, Avoid for Parallelism
+"""
+- Python threads can't run in parallel on multiple CPU cores because
+of the global interpreter lock (GIL). PEP 703 may address this issue though!
+- Python threads are still useful despite the GIL because they provide
+an easy way to do multiple things seemingly at the same time.
+- Use Python threads to make multiple system calls in parallel. This
+allows you to do blocking I/O at the same time as computation.
+"""
+
+# A computationally intensive function used to illustrate Pythons lack of parallelism
+def factorize(number):
+    for i in range(1, number + 1):
+        if number % i == 0:
+            yield i
+
+# Record the time it takes to run the function as is
+import time
+
+numbers = [2139079, 1214759, 1516637, 1852285]
+start = time.time()
+
+for number in numbers:
+    list(factorize(number))
+
+end = time.time()
+delta = end - start
+print(f'Took {delta:.3f} seconds')
+
+# Use multiple threads for the factorize function
+from threading import Thread
+
+class FactorizeThread(Thread):
+    def __init__(self, number):
+        super().__init__()
+        self.number = number
+
+    def run(self):
+        self.factors = list(factorize(self.number))
+
+# Record the time it takes to run the function with threads
+start = time.time()
+
+threads = []
+for number in numbers:
+    thread = FactorizeThread(number)
+    thread.start()
+    threads.append(thread)
+
+for thread in threads:
+    thread.join()
+
+end = time.time()
+delta = end - start
+print(f'Took {delta:.3f} seconds')
+
+## Using threads takes longer because of the GIL
+
+# There are use cases for using threads
+# For example, threads can help handle blocking I/O by bypassing the time
+# it takes for the operating system to respond to requests
+import select
+import socket
+
+# This function asks the operating system to block for 0.1 seconds and then return
+# control to the program. This is run in serial.
+def slow_systemcall():
+    select.select([socket.socket()], [], [], 0.1)
+
+start = time.time()
+
+for _ in range(5):
+    slow_systemcall()
+
+end = time.time()
+delta = end - start
+print(f'Took {delta:.3f} seconds')
+
+# This example runs multiple invocations of slow_systemcall in separate threads
+start = time.time()
+
+threads = []
+for _ in range(5):
+    thread = Thread(target=slow_systemcall)
+    thread.start()
+    threads.append(thread)
+
+# While the threads run slow_systemcall, other functions can be run
+def compute_helicopter_location(index):
+    pass
+
+for i in range(5):
+    compute_helicopter_location(i)
+
+for thread in threads:
+    thread.join()
+
+end = time.time()
+delta = end - start
+print(f'Took {delta:.3f} seconds')
+
+## This is now 5x faster than the serial run case. This is because system calls
+## can run in parallel from multiple Python threads
