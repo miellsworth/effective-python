@@ -4039,3 +4039,115 @@ print(f'Took {delta:.3f} seconds')
 
 ## This is now 5x faster than the serial run case. This is because system calls
 ## can run in parallel from multiple Python threads
+
+## Item 54: Use Lock to Prevent Data Races in Threads
+"""
+- Even though Python has a global interpreter lock, you're still
+responsible for protecting against data races between the threads in
+your programs.
+- Your programs will corrupt their data structures if you allow multiple
+threads to modify the same objects without mutual-exclusion
+locks (mutexes).
+- Use the Lock class from the threading built-in module to enforce
+your program's invariants between multiple threads.
+"""
+
+# The following program counts a bunch of things in parallel. This example represents
+# a sampling of light levels from a network of sensors.
+class Counter:
+    def __init__(self):
+        self.count = 0
+
+    def increment(self, offset):
+        self.count += offset
+
+
+# Each sensor in this example has its own worker thread since reading from the sensor
+# requires blocking I/O.
+def worker(sensor_index, how_many, counter):
+    # I have a barrier in here so the workers synchronize
+    # when they start counting, otherwise it's hard to get a race
+    # because the overhead of starting a thread is high.
+    BARRIER.wait()
+    for _ in range(how_many):
+        # Read from the sensor (increment the counter up!)
+        # Nothing actually happens here, but this is where
+        # the blocking I/O would go.
+        counter.increment(1)
+
+# Run one worker thread for each sensor in parallel, wait for them to finish readings
+from threading import Barrier
+BARRIER = Barrier(5)
+from threading import Thread
+
+how_many = 10**5  # Number of readings per worker
+counter = Counter()  # Counter object that increments the count
+
+threads = []
+for i in range(5):
+    thread = Thread(target=worker,
+                    args=(i, how_many, counter))
+    threads.append(thread)
+    thread.start()
+
+for thread in threads:
+    thread.join()
+
+expected = how_many * 5
+found = counter.count
+print(f'Counter should be {expected}, got {found}')
+
+## The result between expected and found is different because Python suspends
+## and resumes threads to ensure they get roughly equal processing time.
+
+# This operation appears as though it can't get interrupted but even though
+# it appears like one operation, it's actually three
+counter.count += 1
+
+# These are the three operations that happen behind the scenes
+value = getattr(counter, 'count')
+result = value + 1
+setattr(counter, 'count', result)
+
+# This example illustrates what might happen when Python suspends and resums threads
+# Running in Thread A
+value_a = getattr(counter, 'count')
+# Context switch to Thread B
+value_b = getattr(counter, 'count')
+result_b = value_b + 1
+setattr(counter, 'count', result_b)
+# Context switch back to Thread A
+result_a = value_a + 1
+setattr(counter, 'count', result_a)
+
+## This illustrates what happened in the sensor example.
+
+# To prevent this issue, use the Lock class, which is a mutual exclusion lock (mutex)
+from threading import Lock
+
+class LockingCounter:
+    def __init__(self):
+        self.lock = Lock()
+        self.count = 0
+
+    # The with statement here acquires and releases a lock
+    def increment(self, offset):
+        with self.lock:
+            self.count += offset
+
+# Running the same example but with the lock produces the expected result
+BARRIER = Barrier(5)
+counter = LockingCounter()
+
+for i in range(5):
+    thread = Thread(target=worker,
+                    args=(i, how_many, counter))
+    threads.append(thread)
+    thread.start()
+
+for thread in threads:
+    thread.join()
+
+expected = how_many * 5
+found = counter.count
+print(f'Counter should be {expected}, got {found}')
